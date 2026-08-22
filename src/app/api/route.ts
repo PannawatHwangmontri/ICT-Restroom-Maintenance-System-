@@ -8,7 +8,7 @@ let currentOTP: string | null = null;
 let otpExpireTIme: number | null = null;
 
 const SESSION_TIMEOUT_MS = 15 * 60 * 1000;
-const ALLOWED_ADMIN_EMAIL = ' '; // อีเมลเดียวที่อนุญาตในระบบ
+const ALLOWED_ADMIN_EMAIL = ' admin.up.ac.th '; // อีเมลเดียวที่อนุญาตในระบบ
 
 // ตั้งค่า ตัวส่งอีเมล (Nodemailer  Transporter) 
 const transporter = nodemailer.createTransport({

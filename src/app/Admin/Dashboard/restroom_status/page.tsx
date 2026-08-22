@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOpenMobileMenu } from '@/components/MobileMenuContext';
 import {
     LayoutDashboard,
@@ -29,46 +29,49 @@ interface Restroom {
 }
 
 // ข้อมูลจำลองจุดห้องน้ำที่ปรับพิกัดให้อยู่ตรงบริเวณโซนห้องน้ำสีฟ้าพอดี
-// พิกัด x, y วัดจากตำแหน่งจริงของจุดสีบนภาพแผนที่แต่ละชั้น (หน่วย % เทียบกับขนาดภาพ)
 const initialRestrooms: Restroom[] = [
     // --- ชั้น 1 ---
-    { id: '1-W-A', floor: 1, name: 'ห้องน้ำหญิง โซน A', status: 'available', x: 27.0, y: 33.7 },
-    { id: '1-M-A', floor: 1, name: 'ห้องน้ำชาย โซน A', status: 'available', x: 26.2, y: 37.8 },
-    { id: '1-W-B', floor: 1, name: 'ห้องน้ำหญิง โซน B', status: 'unavailable', reason: 'ท่อน้ำรั่วซึมอยู่ระหว่างการซ่อมแซม', x: 72.1, y: 28.1 },
-    { id: '1-M-B', floor: 1, name: 'ห้องน้ำชาย โซน B', status: 'available', x: 73.2, y: 32.1 },
+    { id: '1-W-A', floor: 1, name: 'ห้องน้ำหญิง โซน A', status: 'available', x: 72.5, y: 30.5 },
+    { id: '1-M-A', floor: 1, name: 'ห้องน้ำชาย โซน A', status: 'available', x: 70.8, y: 25.5 },
+    { id: '1-W-B', floor: 1, name: 'ห้องน้ำหญิง โซน B', status: 'available', x: 23.5, y: 35.5 },
+    { id: '1-M-B', floor: 1, name: 'ห้องน้ำชาย โซน B', status: 'available', x: 25.2, y: 30.5 },
 
     // --- ชั้น 2 ---
-    { id: '2-W-A', floor: 2, name: 'ห้องน้ำหญิง โซน A', status: 'available', x: 35.1, y: 34.7 },
-    { id: '2-M-A', floor: 2, name: 'ห้องน้ำชาย โซน A', status: 'available', x: 31.0, y: 32.4 },
-    { id: '2-W-B', floor: 2, name: 'ห้องน้ำหญิง โซน B', status: 'available', x: 54.0, y: 39.6 },
-    { id: '2-M-B', floor: 2, name: 'ห้องน้ำชาย โซน B', status: 'available', x: 56.7, y: 37.8 },
-    { id: '2-W-C', floor: 2, name: 'ห้องน้ำหญิง โซน C', status: 'available', x: 69.5, y: 61.1 },
-    { id: '2-M-C', floor: 2, name: 'ห้องน้ำชาย โซน C', status: 'available', x: 70.7, y: 64.7 },
-    { id: '2-W-D', floor: 2, name: 'ห้องน้ำหญิง โซน D', status: 'available', x: 28.2, y: 66.4 },
-    { id: '2-M-D', floor: 2, name: 'ห้องน้ำชาย โซน D', status: 'available', x: 27.5, y: 70.2 },
+    { id: '2-W-H', floor: 2, name: 'ห้องน้ำหญิง โซนหอประชุมพะเยา', status: 'available', x: 36.0, y: 30.5 },
+    { id: '2-M-H', floor: 2, name: 'ห้องน้ำชาย โซนหอประชุมพะเยา', status: 'available', x: 32.0, y: 28.5 },
+    { id: '2-W-D', floor: 2, name: 'ห้องน้ำหญิง โซน D', status: 'available', x: 58.5, y: 38.5 },
+    { id: '2-M-D', floor: 2, name: 'ห้องน้ำชาย โซน D', status: 'available', x: 52.5, y: 42.2 },
+    { id: '2-W-B', floor: 2, name: 'ห้องน้ำหญิง โซน B', status: 'available', x: 25.5, y: 69.5 },
+    { id: '2-M-B', floor: 2, name: 'ห้องน้ำชาย โซน B', status: 'available', x: 26.5, y: 62.5 },
+    { id: '2-W-A', floor: 2, name: 'ห้องน้ำหญิง โซน A', status: 'available', x: 68.5, y: 65.5 },
+    { id: '2-M-A', floor: 2, name: 'ห้องน้ำชาย โซน A', status: 'available', x: 67.0, y: 59.2 },
 
     // --- ชั้น 3 ---
-    { id: '3-W-A', floor: 3, name: 'ห้องน้ำหญิง โซน A', status: 'unavailable', reason: 'สายฉีดชำระชำรุด', x: 29.9, y: 30.1 },
-    { id: '3-M-A', floor: 3, name: 'ห้องน้ำชาย โซน A', status: 'available', x: 32.5, y: 31.4 },
-    { id: '3-W-B', floor: 3, name: 'ห้องน้ำหญิง โซน B', status: 'available', x: 64.5, y: 41.8 },
-    { id: '3-M-B', floor: 3, name: 'ห้องน้ำชาย โซน B', status: 'available', x: 60.6, y: 44.4 },
-    { id: '3-W-C', floor: 3, name: 'ห้องน้ำหญิง โซน C', status: 'available', x: 73.2, y: 63.6 },
-    { id: '3-M-C', floor: 3, name: 'ห้องน้ำชาย โซน C', status: 'available', x: 74.0, y: 66.9 },
-    { id: '3-W-D', floor: 3, name: 'ห้องน้ำหญิง โซน D', status: 'unavailable', reason: 'ระบบไฟฟ้าขัดข้อง', x: 34.4, y: 68.7 },
-    { id: '3-M-D', floor: 3, name: 'ห้องน้ำชาย โซน D', status: 'available', x: 33.7, y: 72.0 },
+    { id: '3-W-C', floor: 3, name: 'ห้องน้ำหญิง โซน C โซนห้องปฏิบัติการระบบอัจฉริยะและหุ่นยนอัตโนมัต', status: 'available', x: 30.5, y: 28.5 },
+    { id: '3-M-C', floor: 3, name: 'ห้องน้ำชาย โซน C โซนห้องปฏิบัติการระบบอัจฉริยะและหุ่นยนอัตโนมัต', status: 'available', x: 35.0, y: 30.5 },
+    { id: '3-W-D', floor: 3, name: 'ห้องน้ำหญิงโซนงานบริการเครือข่าย ', status: 'available', x: 67.5, y: 47.5 },
+    { id: '3-M-D', floor: 3, name: 'ห้องน้ำชายโซนงานบริการเครือข่าย ', status: 'available', x: 63.5, y: 51.0 },
+    { id: '3-W-B', floor: 3, name: 'ห้องน้ำหญิง โซน B', status: 'available', x: 33.0, y: 73.0 },
+    { id: '3-M-B', floor: 3, name: 'ห้องน้ำชาย โซน B', status: 'available', x: 34.2, y: 67.5 },
+    { id: '3-W-A', floor: 3, name: 'ห้องน้ำหญิง โซน A', status: 'available', x: 70.5, y: 70.2 },
+    { id: '3-M-A', floor: 3, name: 'ห้องน้ำชาย โซน A', status: 'available', x: 69.5, y: 64.5 },
 
     // --- ชั้น 4 ---
-    { id: '4-W-A', floor: 4, name: 'ห้องน้ำหญิง โซน A', status: 'available', x: 23.9, y: 61.4 },
-    { id: '4-M-A', floor: 4, name: 'ห้องน้ำชาย โซน A', status: 'available', x: 23.2, y: 66.1 },
-    { id: '4-W-B', floor: 4, name: 'ห้องน้ำหญิง โซน B', status: 'available', x: 74.1, y: 54.0 },
-    { id: '4-M-B', floor: 4, name: 'ห้องน้ำชาย โซน B', status: 'available', x: 75.0, y: 58.4 },
+    { id: '4-W-C', floor: 4, name: 'ห้องน้ำหญิง โซน B', status: 'available', x: 23.0, y: 59.5 },
+    { id: '4-M-C', floor: 4, name: 'ห้องน้ำชาย โซน B', status: 'available', x: 24.8, y: 53.2 },
+    { id: '4-W-A', floor: 4, name: 'ห้องน้ำหญิง โซน A', status: 'available', x: 72.0, y: 54.0 },
+    { id: '4-M-A', floor: 4, name: 'ห้องน้ำชาย โซน A', status: 'available', x: 71.0, y: 48.2 },
 ];
-
 
 export default function RestroomStatusPage() {
     const openMobileMenu = useOpenMobileMenu();
     const [selectedFloor, setSelectedFloor] = useState<number>(1);
     const [restrooms, setRestrooms] = useState<Restroom[]>(initialRestrooms);
+
+    // อัปเดต State อัตโนมัติเมื่อมีการแก้ไขข้อมูล initialRestrooms ในซอร์สโค้ด (Hot Reload)
+    useEffect(() => {
+        setRestrooms(initialRestrooms);
+    }, [initialRestrooms]);
 
     // Notifications state
     const [showNotifications, setShowNotifications] = useState(false);
@@ -82,6 +85,17 @@ export default function RestroomStatusPage() {
     // Modal state สำหรับเปลี่ยนสถานะเป็น "ไม่พร้อมใช้งาน"
     const [pendingItem, setPendingItem] = useState<Restroom | null>(null);
     const [reasonText, setReasonText] = useState('');
+
+    // เพิ่ม useEffect สำหรับจำลองการดึงข้อมูลอัปเดตทุกๆ 5 วินาที
+    useEffect(() => {
+        const updateStatus = async () => {
+            console.log("อัปเดตสถานะห้องน้ำอัตโนมัติแล้ว!");
+        };
+
+        const interval = setInterval(updateStatus, 5000);
+
+        return () => clearInterval(interval);
+    }, []);
 
     // รูปภาพแผนที่ตามชั้น
     const mapImages: Record<number, string> = {
@@ -198,7 +212,6 @@ export default function RestroomStatusPage() {
 
                 {/* ---------------- Map Interactive Card ---------------- */}
                 <div className="bg-[#E2D9EE]/60 rounded-3xl p-4 sm:p-6 shadow-sm mb-6 border border-purple-100/50 flex flex-col items-center justify-center">
-                    {/* ใช้ w-full max-w-4xl และ relative inline-block เพื่อให้ล้อมรอบรูปพอดี ไม่เกิดช่องว่างเกินจริง */}
                     <div className="w-full max-w-4xl flex justify-center overflow-x-auto">
                         <div className="relative inline-block rounded-2xl overflow-hidden bg-white shadow-sm min-w-[300px]">
                             {/* ภาพแผนที่ตามชั้น */}

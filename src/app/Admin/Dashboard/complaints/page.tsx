@@ -46,7 +46,7 @@ const initialComplaints = [
         severity: 'ปกติ',
         status: 'รอรับเรื่อง',
         repeatCount: 5,
-        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80&w=600',
+        imageUrl: '/photo/ปัญหาสายชำระชำรุด.jpg',
         note: ''
     },
     {
@@ -60,7 +60,7 @@ const initialComplaints = [
         severity: 'ปกติ',
         status: 'รอรับเรื่อง',
         repeatCount: 3,
-        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80&w=600',
+        imageUrl: '/photo/ปัญหาสายชำระชำรุด.jpg',
         note: ''
     },
     {
@@ -74,7 +74,7 @@ const initialComplaints = [
         severity: 'เร่งด่วน',
         status: 'รอรับเรื่อง',
         repeatCount: 2,
-        imageUrl: 'https://images.unsplash.com/photo-1507652313519-d4e9174996dd?auto=format&fit=crop&q=80&w=600',
+        imageUrl: '/photo/ปัญหาสายชำระชำรุด.jpg',
         note: ''
     },
     {
@@ -88,7 +88,7 @@ const initialComplaints = [
         severity: 'ปกติ',
         status: 'แจ้งแล้ว',
         repeatCount: 1,
-        imageUrl: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=600',
+        imageUrl: '/photo/ปัญหาสายชำระชำรุด.jpg',
         note: ''
     },
     {
@@ -102,7 +102,7 @@ const initialComplaints = [
         severity: 'เร่งด่วน',
         status: 'ไม่รับเรื่อง',
         repeatCount: 1,
-        imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&q=80&w=600',
+        imageUrl: '/photo/ปัญหาสายชำระชำรุด.jpg',
         note: 'ข้อมูลซ้ำซ้อนกับเคส #ST2-01 ที่กำลังดำเนินการอยู่'
     }
 ];
@@ -225,9 +225,9 @@ export default function ComplaintsPage() {
     // State จัดการตารางที่กำลังเลือกโหมดลบ ('latest' หรือ 'all') เพื่อให้แยกกันแสดงผล UI
     const [deleteModeTable, setDeleteModeTable] = useState(null);
 
-    // State จัดการ Dropdown ยุบ/คลี่ตาราง
-    const [isLatestOpen, setIsLatestOpen] = useState(true);
-    const [isAllOpen, setIsAllOpen] = useState(true);
+    // State จัดการ Dropdown ยุบ/คลี่ตาราง (กำหนดให้เป็น false เพื่อพับไว้ก่อนตามรูปภาพ)
+    const [isLatestOpen, setIsLatestOpen] = useState(false);
+    const [isAllOpen, setIsAllOpen] = useState(false);
 
     const [expandedGroupIds, setExpandedGroupIds] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState('ทั้งหมด');
@@ -368,12 +368,11 @@ export default function ComplaintsPage() {
         );
     };
 
-    // ลบข้อมูลโดยอิงจาก state หลัก (complaints) ทำให้ข้อมูลหายไปจากทั้ง 2 ตารางอัตโนมัติ 
     const confirmDelete = () => {
         setComplaints((prev) => prev.filter((item) => !selectedIds.includes(item.id)));
         setSelectedIds([]);
         setDeleteModalOpen(false);
-        setDeleteModeTable(null); // ยกเลิกสถานะโหมดลบ
+        setDeleteModeTable(null);
         showToast('ลบข้อมูลเรียบร้อยแล้ว');
     };
 
@@ -635,7 +634,7 @@ export default function ComplaintsPage() {
                     >
                         <div className="flex items-center gap-3">
                             <div className="p-1 rounded-md bg-white/10">
-                                <ChevronDown className={`w-5 h-5 transition-transform duration-200 ${isLatestOpen ? 'transform rotate-0' : 'transform -rotate-90'}`} />
+                                <ChevronRight className={`w-5 h-5 transition-transform duration-200 ${isLatestOpen ? 'transform rotate-90' : 'transform rotate-0'}`} />
                             </div>
                             <h3 className="font-bold text-sm sm:text-base">รายการล่าสุด</h3>
                             {selectedIds.length > 0 && deleteModeTable === 'latest' && (
@@ -665,13 +664,13 @@ export default function ComplaintsPage() {
                                 onClick={() => {
                                     if (deleteModeTable !== 'latest') {
                                         setDeleteModeTable('latest');
-                                        setSelectedIds([]); // เคลียร์ตัวเลือกเมื่อเปิดโหมด
+                                        setSelectedIds([]);
                                         if (!isLatestOpen) setIsLatestOpen(true);
                                     } else {
                                         if (selectedIds.length > 0) {
                                             setDeleteModalOpen(true);
                                         } else {
-                                            setDeleteModeTable(null); // ปิดโหมด
+                                            setDeleteModeTable(null);
                                         }
                                     }
                                 }}
@@ -778,7 +777,7 @@ export default function ComplaintsPage() {
                     >
                         <div className="flex items-center gap-3">
                             <div className="p-1 rounded-md bg-white/10">
-                                <ChevronDown className={`w-5 h-5 transition-transform duration-200 ${isAllOpen ? 'transform rotate-0' : 'transform -rotate-90'}`} />
+                                <ChevronRight className={`w-5 h-5 transition-transform duration-200 ${isAllOpen ? 'transform rotate-90' : 'transform rotate-0'}`} />
                             </div>
                             <h3 className="font-bold text-sm sm:text-base">
                                 ตารางรายการทั้งหมด (แสดงผลรวมรายการซ้ำ)
@@ -1570,4 +1569,4 @@ export default function ComplaintsPage() {
             )}
         </div>
     );
-} 
+}
