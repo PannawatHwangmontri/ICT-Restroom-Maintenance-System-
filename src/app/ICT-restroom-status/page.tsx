@@ -125,7 +125,7 @@ export default function ICTRestroomStatusPage() {
         <div>
           <h2 className="text-base font-extrabold text-black mb-3">แผนที่ห้องน้ำ</h2>
 
-          <div className="bg-white border-[2px] border-[#B870E8] rounded-3xl p-3 md:p-4 shadow-sm flex items-center justify-center relative w-full">
+          <div className="bg-white border-[2px] border-[#b870e8] rounded-3xl p-3 md:p-4 shadow-sm flex items-center justify-center relative w-full">
             
             {hasSelected ? (
               <div className="w-full max-w-2xl relative mx-auto flex">
