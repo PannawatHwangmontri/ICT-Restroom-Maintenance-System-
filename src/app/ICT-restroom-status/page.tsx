@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface RestroomSpot {
   name: string;
@@ -12,110 +12,77 @@ interface RestroomSpot {
 }
 
 export default function ICTRestroomStatusPage() {
+  const router = useRouter();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState('ประเภทห้องน้ำที่เลือก');
-  const [activeFloor, setActiveFloor] = useState<string | null>(null);
+  
+  // แยก State: อันนึงเก็บชั้นที่เลือก(เพื่อเปลี่ยนแผนที่) อีกอันเก็บชื่อห้องน้ำที่กด(เพื่อโชว์กล่องล่าง)
+  const [selectedFloor, setSelectedFloor] = useState<string | null>(null); 
+  const [selectedSpot, setSelectedSpot] = useState('ประเภทห้องน้ำที่เลือก');
   const [activePopup, setActivePopup] = useState<string | null>(null);
 
-  const locationHierarchy: { [key: string]: string[] } = {
-    'ชั้น 1': [
-      'ห้องน้ำหญิง / ชั้น 1 โซน A',
-      'ห้องน้ำหญิง / ชั้น 1 โซน B',
-      'ห้องน้ำชาย / ชั้น 1 โซน A',
-      'ห้องน้ำชาย / ชั้น 1 โซน B'
-    ],
-    'ชั้น 2': [
-      'ห้องน้ำหญิง / ชั้น 2 โซน A',
-      'ห้องน้ำหญิง / ชั้น 2 โซน B',
-      'ห้องน้ำหญิง / ชั้น 2 โซน D (บริเวณ งานบริการระบบเครือข่ายคอมพิวเตอร์)',
-      'ห้องน้ำหญิง / ชั้น 2 โซน หอประชุมพะเยา',
-      'ห้องน้ำชาย / ชั้น 2 โซน A',
-      'ห้องน้ำชาย / ชั้น 2 โซน B',
-      'ห้องน้ำชาย / ชั้น 2 โซน D (บริเวณ งานบริการระบบเครือข่ายคอมพิวเตอร์)',
-      'ห้องน้ำชาย / ชั้น 2 โซน หอประชุมพะเยา'
-    ],
-    'ชั้น 3': [
-      'ห้องน้ำหญิง / ชั้น 3 โซน A',
-      'ห้องน้ำหญิง / ชั้น 3 โซน B',
-      'ห้องน้ำหญิง / ชั้น 3 โซน C (ห้องน้ำชำรุดใช้งานไม่ได้)',
-      'ห้องน้ำหญิง / ชั้น 3 โซน D (บริเวณห้องCITCOMS)',
-      'ห้องน้ำชาย / ชั้น 3 โซน A',
-      'ห้องน้ำชาย / ชั้น 3 โซน B',
-      'ห้องน้ำชาย / ชั้น 3 โซน C (ห้องน้ำชำรุดใช้งานไม่ได้)',
-      'ห้องน้ำชาย / ชั้น 3 โซน D (บริเวณห้องCITCOMS)'
-    ],
-    'ชั้น 4': [
-      'ห้องน้ำหญิง / ชั้น 4 โซน A',
-      'ห้องน้ำหญิง / ชั้น 4 โซน B',
-      'ห้องน้ำชาย / ชั้น 4 โซน A',
-      'ห้องน้ำชาย / ชั้น 4 โซน B'
-    ]
-  };
+  // เมนูเหลือแค่ชั้น 1-4
+  const floors = ['ชั้น 1', 'ชั้น 2', 'ชั้น 3', 'ชั้น 4'];
 
   const floorRestroomSpots: { [key: string]: RestroomSpot[] } = {
     'ชั้น 1': [
-      { name: 'ห้องน้ำหญิง / ชั้น 1 โซน B', cx: 260, cy: 227, status: 'pending' },
-      { name: 'ห้องน้ำชาย / ชั้น 1 โซน B', cx: 253, cy: 247, status: 'pending' },
-      { name: 'ห้องน้ำหญิง / ชั้น 1 โซน A', cx: 769, cy: 164, status: 'pending' },
-      { name: 'ห้องน้ำชาย / ชั้น 1 โซน A', cx: 777, cy: 184, status: 'pending' },
+      { name: 'ห้องน้ำหญิง / ชั้น 1 โซน A', cx: 725, cy: 213.5, status: 'available' },
+      { name: 'ห้องน้ำชาย / ชั้น 1 โซน A', cx: 708, cy: 178.5, status: 'available' },
+      { name: 'ห้องน้ำหญิง / ชั้น 1 โซน B', cx: 235, cy: 248.5, status: 'available' },
+      { name: 'ห้องน้ำชาย / ชั้น 1 โซน B', cx: 252, cy: 213.5, status: 'available' }
     ],
     'ชั้น 2': [
-      { name: 'ห้องน้ำหญิง / ชั้น 2 โซน หอประชุมพะเยา', cx: 320, cy: 220, status: 'pending' },
-      { name: 'ห้องน้ำชาย / ชั้น 2 โซน หอประชุมพะเยา', cx: 312, cy: 241, status: 'pending' },
-      { name: 'ห้องน้ำหญิง / ชั้น 2 โซน D (บริเวณ งานบริการระบบเครือข่ายคอมพิวเตอร์)', cx: 575, cy: 270, status: 'pending' },
-      { name: 'ห้องน้ำชาย / ชั้น 2 โซน D (บริเวณ งานบริการระบบเครือข่ายคอมพิวเตอร์)', cx: 580, cy: 290, status: 'pending' },
-      { name: 'ห้องน้ำหญิง / ชั้น 2 โซน A', cx: 735, cy: 405, status: 'pending' },
-      { name: 'ห้องน้ำชาย / ชั้น 2 โซน A', cx: 744, cy: 425, status: 'pending' },
-      { name: 'ห้องน้ำหญิง / ชั้น 2 โซน B', cx: 295, cy: 460, status: 'pending' },
-      { name: 'ห้องน้ำชาย / ชั้น 2 โซน B', cx: 289, cy: 480, status: 'pending' },
+      { name: 'ห้องน้ำหญิง / ชั้น 2 โซน หอประชุมพะเยา', cx: 360, cy: 213.5, status: 'available' },
+      { name: 'ห้องน้ำชาย / ชั้น 2 โซน หอประชุมพะเยา', cx: 320, cy: 199.5, status: 'available' },
+      { name: 'ห้องน้ำหญิง / ชั้น 2 โซน D (บริเวณ งานบริการระบบเครือข่ายคอมพิวเตอร์)', cx: 585, cy: 269.5, status: 'available' },
+      { name: 'ห้องน้ำชาย / ชั้น 2 โซน D (บริเวณ งานบริการระบบเครือข่ายคอมพิวเตอร์)', cx: 525, cy: 295.4, status: 'available' },
+      { name: 'ห้องน้ำหญิง / ชั้น 2 โซน A', cx: 685, cy: 458.5, status: 'available' },
+      { name: 'ห้องน้ำชาย / ชั้น 2 โซน A', cx: 670, cy: 414.4, status: 'available' },
+      { name: 'ห้องน้ำหญิง / ชั้น 2 โซน B', cx: 255, cy: 486.5, status: 'available' },
+      { name: 'ห้องน้ำชาย / ชั้น 2 โซน B', cx: 265, cy: 437.5, status: 'available' }
     ],
     'ชั้น 3': [
-      { name: 'ห้องน้ำหญิง / ชั้น 3 โซน C (ห้องน้ำชำรุดใช้งานไม่ได้)', cx: 305, cy: 224, status: 'pending' },
-      { name: 'ห้องน้ำชาย / ชั้น 3 โซน C (ห้องน้ำชำรุดใช้งานไม่ได้)', cx: 299, cy: 244, status: 'pending' },
-      { name: 'ห้องน้ำหญิง / ชั้น 3 โซน D (บริเวณห้องCITCOMS)', cx: 645, cy: 295, status: 'pending' },
-      { name: 'ห้องน้ำชาย / ชั้น 3 โซน D (บริเวณห้องCITCOMS)', cx: 653, cy: 315, status: 'pending' },
-      { name: 'ห้องน้ำหญิง / ชั้น 3 โซน A', cx: 775, cy: 440, status: 'pending' },
-      { name: 'ห้องน้ำชาย / ชั้น 3 โซน A', cx: 783, cy: 460, status: 'pending' },
-      { name: 'ห้องน้ำหญิง / ชั้น 3 โซน B', cx: 363, cy: 490, status: 'pending' },
-      { name: 'ห้องน้ำชาย / ชั้น 3 โซน B', cx: 356, cy: 510, status: 'pending' },
+      { name: 'ห้องน้ำหญิง / ชั้น 3 โซน C (ห้องน้ำชำรุดใช้งานไม่ได้)', cx: 305, cy: 199.5, status: 'available' },
+      { name: 'ห้องน้ำชาย / ชั้น 3 โซน C (ห้องน้ำชำรุดใช้งานไม่ได้)', cx: 350, cy: 213.5, status: 'available' },
+      { name: 'ห้องน้ำหญิง / ชั้น 3 โซน D (บริเวณห้องCITCOMS)', cx: 675, cy: 332.5, status: 'available' },
+      { name: 'ห้องน้ำชาย / ชั้น 3 โซน D (บริเวณห้องCITCOMS)', cx: 635, cy: 357, status: 'available' },
+      { name: 'ห้องน้ำหญิง / ชั้น 3 โซน A', cx: 705, cy: 491.4, status: 'available' },
+      { name: 'ห้องน้ำชาย / ชั้น 3 โซน A', cx: 695, cy: 451.5, status: 'available' },
+      { name: 'ห้องน้ำหญิง / ชั้น 3 โซน B', cx: 330, cy: 511, status: 'available' },
+      { name: 'ห้องน้ำชาย / ชั้น 3 โซน B', cx: 342, cy: 472.5, status: 'available' }
     ],
     'ชั้น 4': [
-      { name: 'ห้องน้ำหญิง / ชั้น 4 โซน B', cx: 275, cy: 387, status: 'pending' },
-      { name: 'ห้องน้ำชาย / ชั้น 4 โซน B', cx: 268, cy: 407, status: 'pending' },
-      { name: 'ห้องน้ำหญิง / ชั้น 4 โซน A', cx: 780, cy: 325, status: 'pending' },
-      { name: 'ห้องน้ำชาย / ชั้น 4 โซน A', cx: 786, cy: 344, status: 'pending' },
+      { name: 'ห้องน้ำหญิง / ชั้น 4 โซน B', cx: 230, cy: 416.5, status: 'available' },
+      { name: 'ห้องน้ำชาย / ชั้น 4 โซน B', cx: 248, cy: 372.4, status: 'available' },
+      { name: 'ห้องน้ำหญิง / ชั้น 4 โซน A', cx: 720, cy: 378, status: 'available' },
+      { name: 'ห้องน้ำชาย / ชั้น 4 โซน A', cx: 710, cy: 337.4, status: 'available' }
     ]
   };
 
-  const hasSelected = selectedLocation !== 'ประเภทห้องน้ำที่เลือก';
-
-  const getCurrentFloorKey = () => {
-    if (selectedLocation.includes('ชั้น 2')) return 'ชั้น 2';
-    if (selectedLocation.includes('ชั้น 3')) return 'ชั้น 3';
-    if (selectedLocation.includes('ชั้น 4')) return 'ชั้น 4';
-    if (selectedLocation.includes('ชั้น 1')) return 'ชั้น 1';
-    return activeFloor || 'ชั้น 1';
-  };
-
   const getFloorImage = () => {
-    const floor = getCurrentFloorKey();
-    if (floor === 'ชั้น 2') return '/photo/ICT-floor2.jpg';
-    if (floor === 'ชั้น 3') return '/photo/ICT-floor3.jpg';
-    if (floor === 'ชั้น 4') return '/photo/ICT-floor4.jpg';
+    if (selectedFloor === 'ชั้น 2') return '/photo/ICT-floor2.jpg';
+    if (selectedFloor === 'ชั้น 3') return '/photo/ICT-floor3.jpg';
+    if (selectedFloor === 'ชั้น 4') return '/photo/ICT-floor4.jpg';
     return '/photo/ICT-floor1.jpg';
   };
 
-  const currentFloorKey = getCurrentFloorKey();
-  const currentSpots = floorRestroomSpots[currentFloorKey] || [];
+  const currentSpots = selectedFloor ? floorRestroomSpots[selectedFloor] : [];
 
   return (
     <div className="min-h-screen bg-[#FDF9FF] flex flex-col font-sans pb-10">
       
       {/* --- Header --- */}
       <div className="w-full bg-[#E4C5F9] text-black px-4 py-4 md:px-8 md:py-5 flex items-center space-x-4 shadow-sm mb-6">
-        <Link href="/" className="text-xl font-bold hover:opacity-75 transition-opacity">
+        <button 
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            window.close(); // ลองสั่งปิดหน้าต่าง (สำหรับ LINE)
+            setTimeout(() => router.push('/'), 300); // ถ้าปิดไม่ได้ให้กลับหน้าหลัก (สำหรับ PC)
+          }} 
+          className="text-xl font-bold hover:opacity-75 transition-opacity"
+        >
           &lt;
-        </Link>
+        </button>
         <h1 className="text-lg md:text-xl font-extrabold">สถานะห้องน้ำทั้งหมดในคณะ</h1>
       </div>
 
@@ -127,24 +94,23 @@ export default function ICTRestroomStatusPage() {
 
           <div className="bg-white border-[2px] border-[#b870e8] rounded-3xl p-3 md:p-4 shadow-sm flex items-center justify-center relative w-full">
             
-            {hasSelected ? (
+            {selectedFloor ? (
               <div className="w-full max-w-2xl relative mx-auto flex">
                 <svg viewBox="0 0 1000 700" className="w-full h-auto block rounded-2xl select-none overflow-visible">
                   <image href={getFloorImage()} width="1000" height="700" preserveAspectRatio="xMidYMid meet" />
                   
                   {currentSpots.map((spot, index) => {
-                    const isSelected = selectedLocation === spot.name;
+                    const isSelected = selectedSpot === spot.name;
 
                     return (
                       <g 
                         key={index} 
                         className="cursor-pointer" 
                         onClick={() => {
-                          setSelectedLocation(spot.name);
+                          setSelectedSpot(spot.name);
                           setActivePopup(activePopup === spot.name ? null : spot.name);
                         }}
                       >
-                        {/* 1. เพิ่มพื้นที่กดล่องหน (Invisible Touch Target) โปร่งใส มองไม่เห็นแต่กดติดง่าย */}
                         <circle 
                           cx={spot.cx} 
                           cy={spot.cy} 
@@ -152,7 +118,6 @@ export default function ICTRestroomStatusPage() {
                           fill="transparent" 
                         />
                         
-                        {/* 2. จุดแสดงผลจริง ขนาดเท่าเดิม (รักษาสมดุลไม่ให้ทับกัน) */}
                         <circle 
                           cx={spot.cx} 
                           cy={spot.cy} 
@@ -248,14 +213,7 @@ export default function ICTRestroomStatusPage() {
           </div>
         </div>
 
-        {/* --- ส่วนที่ 3: กล่องแสดงประเภทห้องน้ำที่เลือก --- */}
-        <div className={`bg-white border border-black/30 rounded-2xl p-4 text-center font-bold text-sm md:text-base shadow-sm ${
-          hasSelected ? 'text-black' : 'text-gray-400'
-        }`}>
-          {selectedLocation}
-        </div>
-
-        {/* --- ส่วนที่ 4: เมนูดรอปดาวน์เลือกชั้น --- */}
+        {/* --- ส่วนที่ 3: เมนูดรอปดาวน์เลือกชั้น (เอาซับเมนูออก) --- */}
         <div>
           <h2 className="text-base font-extrabold text-black mb-3">กรุณาเลือกชั้นที่ต้องการดู</h2>
 
@@ -264,47 +222,38 @@ export default function ICTRestroomStatusPage() {
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               className="w-full bg-white border border-black/30 rounded-2xl p-4 text-sm md:text-base text-black flex items-center justify-between cursor-pointer shadow-sm select-none"
             >
-              <span className={hasSelected ? 'text-black font-semibold' : 'text-gray-500'}>
-                {hasSelected ? selectedLocation : 'เลือกชั้น'}
+              <span className={selectedFloor ? 'text-black font-semibold' : 'text-gray-500'}>
+                {selectedFloor || 'เลือกชั้น'}
               </span>
               <span>{isDropdownOpen ? '▲' : '▼'}</span>
             </div>
 
             {isDropdownOpen && (
               <div className="absolute top-full left-0 w-full mt-2 bg-white border border-black/20 rounded-2xl shadow-xl overflow-hidden z-20 max-h-80 overflow-y-auto">
-                {Object.keys(locationHierarchy).map((floor) => (
-                  <div key={floor} className="border-b border-gray-100 last:border-none">
-                    <div 
-                      onClick={() => setActiveFloor(activeFloor === floor ? null : floor)}
-                      className="px-4 py-3 bg-purple-50 hover:bg-purple-100 cursor-pointer text-sm md:text-base font-extrabold text-black flex items-center justify-between"
-                    >
-                      <span>{floor}</span>
-                      <span className="text-xs">{activeFloor === floor ? '▲' : '▼'}</span>
-                    </div>
-
-                    {activeFloor === floor && (
-                      <div className="bg-white flex flex-col">
-                        {locationHierarchy[floor].map((subItem, index) => (
-                          <div 
-                            key={index}
-                            onClick={() => {
-                              setSelectedLocation(subItem);
-                              setIsDropdownOpen(false);
-                              setActiveFloor(null);
-                              setActivePopup(null); 
-                            }}
-                            className="px-6 py-2.5 hover:bg-purple-50 cursor-pointer text-xs md:text-sm text-gray-700 border-b border-gray-50 last:border-none"
-                          >
-                            - {subItem}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                {floors.map((floor) => (
+                  <div 
+                    key={floor}
+                    onClick={() => {
+                      setSelectedFloor(floor);
+                      setIsDropdownOpen(false);
+                      setActivePopup(null); 
+                      setSelectedSpot('ประเภทห้องน้ำที่เลือก'); // รีเซ็ตชื่อกล่องล่างเมื่อเปลี่ยนชั้น
+                    }}
+                    className="px-4 py-3 bg-purple-50 hover:bg-purple-100 cursor-pointer text-sm md:text-base font-extrabold text-black border-b border-gray-100 last:border-none"
+                  >
+                    {floor}
                   </div>
                 ))}
               </div>
             )}
           </div>
+        </div>
+
+        {/* --- ส่วนที่ 4: กล่องแสดงประเภทห้องน้ำที่กดจากแผนที่ --- */}
+        <div className={`bg-white border border-black/30 rounded-2xl p-4 text-center font-bold text-sm md:text-base shadow-sm ${
+          selectedSpot !== 'ประเภทห้องน้ำที่เลือก' ? 'text-black' : 'text-gray-400'
+        }`}>
+          {selectedSpot}
         </div>
 
       </div>

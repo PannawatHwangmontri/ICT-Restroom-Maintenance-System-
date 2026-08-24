@@ -111,11 +111,14 @@ export default function ReportPage() {
                          selectedFile !== null || 
                          isUrgent;
 
+  // 📍 แก้ไขจุดที่ 1: เปลี่ยนมาใช้ window.close()
   const handleBackClick = (e: React.MouseEvent) => {
+    e.preventDefault();
     if (hasFormStarted) {
-      e.preventDefault();
-      setPendingUrl('/');
+      setPendingUrl('close');
       setModalStep('leave');
+    } else {
+      window.close(); // ปิดหน้าต่างกลับสู่ LINE ทันทีถ้ายังไม่ได้พิมพ์อะไร
     }
   };
 
@@ -171,9 +174,10 @@ export default function ReportPage() {
       
       {/* --- Header --- */}
       <div className="w-full bg-[#E4C5F9] text-black px-4 py-4 md:px-8 md:py-5 flex items-center space-x-4 shadow-sm mb-6">
-        <Link href="/" onClick={handleBackClick} className="text-xl font-bold hover:opacity-75 transition-opacity">
+        {/* 📍 แก้ไขจุดที่ 2: เปลี่ยนจาก <Link> เป็น <button> */}
+        <button type="button" onClick={handleBackClick} className="text-xl font-bold hover:opacity-75 transition-opacity">
           &lt;
-        </Link>
+        </button>
         <h1 className="text-lg md:text-xl font-extrabold">แจ้งรายละเอียดปัญหา</h1>
       </div>
 
@@ -521,10 +525,15 @@ export default function ReportPage() {
             </h2>
 
             <div className="w-full flex flex-col gap-3">
+              {/* 📍 แก้ไขจุดที่ 3: เช็ก pendingUrl === 'close' ให้ปิดหน้าจอ */}
               <button 
                 onClick={() => {
                   setModalStep(null);
-                  if (pendingUrl) router.push(pendingUrl);
+                  if (pendingUrl === 'close') {
+                    window.close(); // ปิดหน้าต่างกลับสู่ LINE
+                  } else if (pendingUrl) {
+                    router.push(pendingUrl); // สำหรับกรณีไปหน้าอื่น (ถ้ามี)
+                  }
                 }}
                 className="w-full bg-[#2E7D32] hover:bg-[#256628] text-white font-extrabold py-3.5 rounded-2xl shadow-md text-base transition-transform active:scale-95"
               >
