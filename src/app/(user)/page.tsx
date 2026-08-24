@@ -11,8 +11,15 @@ export default function Home() {
 
   useEffect(() => {
     const initLiff = async () => {
+      const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+      if (!liffId) {
+        console.warn('LIFF Init Skipped: NEXT_PUBLIC_LIFF_ID is not set in Environment Variables');
+        setIsReady(true);
+        return;
+      }
+
       try {
-        await liff.init({ liffId: process.env.NEXT_PUBLIC_LIFF_ID as string });
+        await liff.init({ liffId });
         setIsReady(true);
         if (liff.isLoggedIn()) {
           const userProfile = await liff.getProfile();
@@ -22,6 +29,7 @@ export default function Home() {
         }
       } catch (error) {
         console.error('LIFF Init Error:', error);
+        setIsReady(true);
       }
     };
     initLiff();
