@@ -1,22 +1,36 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 
-// สร้าง Interface โครงสร้างข้อมูลของการแจ้งซ่อม เพื่อเอาไปโยนใส่ Pop-up
 interface TicketData {
   id: string;
   date: string;
   category: string;
   location: string;
   note?: string;
+  status: 'pending' | 'received' | 'cancelled';
 }
 
 export default function StatusPage() {
   const [modalType, setModalType] = useState<'details' | 'image' | null>(null);
-  const [isCancelled, setIsCancelled] = useState(false);
+  const [tickets, setTickets] = useState<TicketData[]>([
+    {
+      id: '#AW1-01',
+      date: '20/07/2026 10:00',
+      category: 'ระบบน้ำ สายฉีดชำระเสีย ห้อง 2',
+      location: 'ห้องน้ำหญิง ชั้น 1 โซน A',
+      note: 'อยู่ระหว่างปิดปรับปรุงพื้นที่ระบบใหญ่',
+      status: 'received'
+    },
+    {
+      id: '#EL2-05',
+      date: '18/07/2026 14:30',
+      category: 'ไฟฟ้า หลอดไฟขาด ห้อง 1',
+      location: 'ห้องน้ำชาย ชั้น 2 โซน B',
+      status: 'pending'
+    }
+  ]);
   
-  // เก็บสถานะว่าตอนเปิด Pop-up ให้โชว์ข้อมูลของรายการไหน
   const [selectedTicket, setSelectedTicket] = useState<TicketData | null>(null);
 
   return (
@@ -24,9 +38,17 @@ export default function StatusPage() {
       
       {/* --- Header ด้านบน --- */}
       <div className="w-full bg-[#E4C5F9] text-black px-4 py-4 md:px-8 md:py-5 flex items-center space-x-4 shadow-sm mb-6">
-        <Link href="/" className="text-xl font-bold hover:opacity-75 transition-opacity">
+        <button 
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            window.close();
+          }}
+          className="text-xl font-bold hover:opacity-75 transition-opacity"
+        >
           &lt;
-        </Link>
+        </button>
+
         <h1 className="text-lg md:text-xl font-extrabold">ติดตามสถานะ</h1>
       </div>
 
@@ -37,46 +59,46 @@ export default function StatusPage() {
         <div>
           <h2 className="text-base font-extrabold text-black mb-3">ล่าสุด</h2>
 
-          {!isCancelled ? (
+          {tickets.length > 0 && tickets[0].status !== 'cancelled' ? (
             <div 
               onClick={() => {
-                // เซ็ตข้อมูลของรายการนี้ เพื่อส่งไปให้ Pop-up
-                setSelectedTicket({
-                  id: '#AW1-01',
-                  date: '20/07/2026 10:00',
-                  category: 'ระบบน้ำ สายฉีดชำระเสีย ห้อง 2',
-                  location: 'ห้องน้ำหญิง ชั้น 1 โซน A',
-                  note: 'อยู่ระหว่างปิดปรับปรุงพื้นที่ระบบใหญ่'
-                });
+                setSelectedTicket(tickets[0]);
                 setModalType('details');
               }}
               className="bg-white border-[2px] border-[#B870E8] rounded-3xl p-5 shadow-sm cursor-pointer hover:border-[#6610A8] transition-all relative"
             >
               <div className="flex justify-between items-start mb-2">
-                <span className="text-lg font-extrabold text-black">#AW1-01</span>
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if(confirm('คุณต้องการไม่รับเรื่องการแจ้งซ่อมนี้ใช่หรือไม่?')) {
-                      setIsCancelled(true);
-                    }
-                  }}
-                  className="bg-[#D32F2F] hover:bg-[#B71C1C] text-white text-xs font-bold px-4 py-1.5 rounded-full shadow transition-transform active:scale-95"
-                >
-                  ไม่รับเรื่อง
-                </button>
+                <span className="text-lg font-extrabold text-black">{tickets[0].id}</span>
+                <div className="flex items-center gap-2">
+                  {/* 📍 นำป้าย "แจ้งแล้ว" (สีเขียว) ออกแล้ว แต่ปุ่ม "ไม่รับเรื่อง" ยังอยู่เหมือนเดิม */}
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if(confirm('คุณต้องการไม่รับเรื่องการแจ้งซ่อมนี้ใช่หรือไม่?')) {
+                        const updated = [...tickets];
+                        updated[0].status = 'cancelled';
+                        setTickets(updated);
+                      }
+                    }}
+                    className="bg-[#D32F2F] hover:bg-[#B71C1C] text-white text-xs font-bold px-4 py-1.5 rounded-full shadow transition-transform active:scale-95"
+                  >
+                    ไม่รับเรื่อง
+                  </button>
+                </div>
               </div>
 
-              <p className="text-xs text-gray-500 mb-2">20/07/2026 10:00</p>
+              <p className="text-xs text-gray-500 mb-2">{tickets[0].date}</p>
               
               <div className="text-sm text-black flex flex-col gap-1 mb-3">
-                <p><strong>หมวดหมู่:</strong> ระบบน้ำ สายฉีดชำระเสีย ห้อง 2</p>
-                <p><strong>สถานที่:</strong> ห้องน้ำหญิง ชั้น 1 โซน A</p>
+                <p><strong>หมวดหมู่:</strong> {tickets[0].category}</p>
+                <p><strong>สถานที่:</strong> {tickets[0].location}</p>
               </div>
 
-              <p className="text-xs text-[#E00000] font-semibold bg-red-50 p-2 rounded-xl border border-red-100">
-                หมายเหตุ: อยู่ระหว่างปิดปรับปรุงพื้นที่ระบบใหญ่
-              </p>
+              {tickets[0].note && (
+                <p className="text-xs text-[#E00000] font-semibold bg-red-50 p-2 rounded-xl border border-red-100">
+                  หมายเหตุ: {tickets[0].note}
+                </p>
+              )}
             </div>
           ) : (
             <div className="bg-gray-50 border border-gray-200 rounded-3xl p-4 text-center text-gray-400 text-sm">
@@ -89,32 +111,41 @@ export default function StatusPage() {
         <div>
           <h2 className="text-base font-extrabold text-black mb-3">ทั้งหมด</h2>
 
-          <div 
-            onClick={() => {
-              // เซ็ตข้อมูลของรายการที่ 2 ให้ไม่ซ้ำกัน
-              setSelectedTicket({
-                id: '#EL2-05',
-                date: '18/07/2026 14:30',
-                category: 'ไฟฟ้า หลอดไฟขาด ห้อง 1',
-                location: 'ห้องน้ำชาย ชั้น 2 โซน B'
-              });
-              setModalType('details');
-            }}
-            className="bg-white border-[2px] border-[#B870E8] rounded-3xl p-5 shadow-sm cursor-pointer hover:border-[#6610A8] transition-all relative"
-          >
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-lg font-extrabold text-black">#EL2-05</span>
-              <span className="bg-[#2E7D32] text-white text-xs font-bold px-4 py-1.5 rounded-full shadow">
-                แจ้งแล้ว
-              </span>
-            </div>
+          <div className="flex flex-col gap-4">
+            {tickets.map((ticket, index) => (
+              <div 
+                key={index}
+                onClick={() => {
+                  setSelectedTicket(ticket);
+                  setModalType('details');
+                }}
+                className="bg-white border-[2px] border-[#B870E8] rounded-3xl p-5 shadow-sm cursor-pointer hover:border-[#6610A8] transition-all relative"
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <span className="text-lg font-extrabold text-black">{ticket.id}</span>
+                  {ticket.status === 'pending' ? (
+                    <span className="bg-[#e3dc01] text-white text-xs font-bold px-4 py-1.5 rounded-full shadow">
+                      รอรับเรื่อง
+                    </span>
+                  ) : ticket.status === 'received' ? (
+                    <span className="bg-[#2E7D32] text-white text-xs font-bold px-4 py-1.5 rounded-full shadow">
+                      แจ้งแล้ว
+                    </span>
+                  ) : (
+                    <span className="bg-gray-400 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow">
+                      ไม่รับเรื่องแล้ว
+                    </span>
+                  )}
+                </div>
 
-            <p className="text-xs text-gray-500 mb-2">18/07/2026 14:30</p>
-            
-            <div className="text-sm text-black flex flex-col gap-1">
-              <p><strong>หมวดหมู่:</strong> ไฟฟ้า หลอดไฟขาด ห้อง 1</p>
-              <p><strong>สถานที่:</strong> ห้องน้ำชาย ชั้น 2 โซน B</p>
-            </div>
+                <p className="text-xs text-gray-500 mb-2">{ticket.date}</p>
+                
+                <div className="text-sm text-black flex flex-col gap-1">
+                  <p><strong>หมวดหมู่:</strong> {ticket.category}</p>
+                  <p><strong>สถานที่:</strong> {ticket.location}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -134,7 +165,6 @@ export default function StatusPage() {
             <h3 className="text-lg font-extrabold text-black mb-1">รายละเอียดการแจ้งซ่อม</h3>
 
             <div className="text-sm text-black flex flex-col gap-2 bg-purple-50/50 p-4 rounded-2xl border border-purple-100">
-              {/* ดึงข้อมูลจาก selectedTicket มาแสดงผลแบบไดนามิก */}
               <p><strong>รหัสแจ้ง:</strong> {selectedTicket.id}</p>
               <p><strong>วันเวลาที่แจ้ง :</strong> {selectedTicket.date} น.</p>
               <p><strong>หมวดหมู่ :</strong> {selectedTicket.category}</p>
@@ -150,7 +180,6 @@ export default function StatusPage() {
               </div>
             </div>
 
-            {/* โชว์หมายเหตุ เฉพาะถ้ารายการนั้นๆ มีข้อมูลหมายเหตุ */}
             {selectedTicket.note && (
               <p className="text-xs text-[#E00000] font-semibold bg-red-50 p-2.5 rounded-xl border border-red-100">
                 หมายเหตุ: {selectedTicket.note}
