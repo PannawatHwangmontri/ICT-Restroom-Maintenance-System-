@@ -47,20 +47,58 @@ const initialFloorRestroomSpots: { [key: string]: RestroomSpot[] } = {
   ]
 };
 
-// Helper ฟังก์ชันเปรียบเทียบชื่อสถานที่
-const normalizeLoc = (str: string) => {
-  return str
-    .replace(/\s+/g, '')
-    .replace(/[()（）/]/g, '')
-    .toLowerCase();
-};
-
+// Helper ฟังก์ชันเปรียบเทียบสถานที่ให้ตรงกัน 100%
 const isLocationMatch = (nameA: string, nameB: string) => {
-  const normA = normalizeLoc(nameA);
-  const normB = normalizeLoc(nameB);
-  if (normA === normB) return true;
-  if (normA.includes(normB) || normB.includes(normA)) return true;
-  return false;
+  if (!nameA || !nameB) return false;
+
+  // 1. ตรวจสอบเพศ (ชาย / หญิง)
+  const isMaleA = nameA.includes('ชาย');
+  const isMaleB = nameB.includes('ชาย');
+  const isFemaleA = nameA.includes('หญิง');
+  const isFemaleB = nameB.includes('หญิง');
+  if (isMaleA !== isMaleB && (isMaleA || isMaleB) && (isFemaleA || isFemaleB)) {
+    return false;
+  }
+
+  // 2. ตรวจสอบชั้น (ชั้น 1, 2, 3, 4)
+  for (let f = 1; f <= 4; f++) {
+    const hasFloorA = nameA.includes(`ชั้น ${f}`) || nameA.includes(`ชั้น${f}`);
+    const hasFloorB = nameB.includes(`ชั้น ${f}`) || nameB.includes(`ชั้น${f}`);
+    if (hasFloorA !== hasFloorB && (hasFloorA || hasFloorB)) {
+      return false;
+    }
+  }
+
+  // 3. ตรวจสอบโซน / บริเวณ
+  const zones = [
+    'โซน a', 'โซน a',
+    'โซน b', 'โซน b',
+    'โซน c', 'โซน c',
+    'โซน d', 'โซน d',
+    'หอประชุมพะเยา',
+    'citcoms',
+    'งานบริการระบบเครือข่ายคอมพิวเตอร์',
+  ];
+
+  const lowerA = nameA.toLowerCase();
+  const lowerB = nameB.toLowerCase();
+
+  let zoneMatched = false;
+  for (const z of zones) {
+    const hasZA = lowerA.includes(z);
+    const hasZB = lowerB.includes(z);
+    if (hasZA && hasZB) {
+      zoneMatched = true;
+      break;
+    }
+  }
+
+  if (zoneMatched) return true;
+
+  // Fallback เปรียบเทียบแบบตัดช่องว่าง
+  const cleanA = lowerA.replace(/[\s/()（）-]/g, '');
+  const cleanB = lowerB.replace(/[\s/()（）-]/g, '');
+  return cleanA === cleanB;
 };
 
 export default function ICTRestroomStatusPage() {
@@ -105,17 +143,24 @@ export default function ICTRestroomStatusPage() {
                   )
                 : null;
 
-              // กรณีชำรุดถาวร
-              const isDefaultBroken = spot.name.includes('ห้องน้ำชำรุดใช้งานไม่ได้');
-
-              if (matchedRestroom && matchedRestroom.status === 'ไม่พร้อมใช้งาน') {
-                return {
-                  ...spot,
-                  status: 'maintenance',
-                  reason: matchedRestroom.reason || 'ปิดปรับปรุงชั่วคราว',
-                };
+              // 1) ถ้าในฐานข้อมูล restroom_status กำหนดสถานะไว้โดยตรง ให้ยึดตามนั้นเป็นหลัก
+              if (matchedRestroom) {
+                if (matchedRestroom.status === 'ไม่พร้อมใช้งาน') {
+                  return {
+                    ...spot,
+                    status: 'maintenance',
+                    reason: matchedRestroom.reason || 'ไม่พร้อมใช้งานตามที่ระบุในฐานข้อมูล',
+                  };
+                } else if (matchedRestroom.status === 'พร้อมใช้งาน') {
+                  return {
+                    ...spot,
+                    status: 'available',
+                    reason: undefined,
+                  };
+                }
               }
 
+              // 2) ถ้ามีรายการแจ้งซ่อมอยู่ระหว่างดำเนินการ
               if (activeRequest) {
                 return {
                   ...spot,
@@ -124,6 +169,8 @@ export default function ICTRestroomStatusPage() {
                 };
               }
 
+              // 3) ค่าเริ่มต้น
+              const isDefaultBroken = spot.name.includes('ห้องน้ำชำรุดใช้งานไม่ได้');
               if (isDefaultBroken) {
                 return {
                   ...spot,

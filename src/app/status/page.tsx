@@ -26,23 +26,32 @@ export default function StatusPage() {
   
   const [selectedTicket, setSelectedTicket] = useState<TicketData | null>(null);
 
-  // ดึง LINE User ID และข้อมูลการแจ้งซ่อมเฉพาะของผู้ใช้นี้
+  // ดึง LINE User ID อัตโนมัติ (Auto-Login) และดึงข้อมูลการแจ้งซ่อมเฉพาะของบัญชีนี้
   useEffect(() => {
     const initAndFetch = async () => {
       const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
 
       if (!liffId) {
-        setIsNotLineUser(true);
-        setIsLoading(false);
+        // กรณีไม่มี LIFF ID (เช่น รันเทสบน Localhost) ดึงข้อมูลทั้งหมด
+        try {
+          const res = await getAllRequests();
+          if (res.success && Array.isArray(res.data)) {
+            setTickets(mapTicketData(res.data));
+          }
+        } catch (err) {
+          console.warn('Fetch error:', err);
+        } finally {
+          setIsLoading(false);
+        }
         return;
       }
 
       try {
         await liff.init({ liffId });
 
+        // Auto-Login อัตโนมัติเมื่อเปิดผ่าน LINE OA
         if (!liff.isLoggedIn()) {
-          setIsNotLineUser(true);
-          setIsLoading(false);
+          liff.login();
           return;
         }
 
@@ -51,68 +60,67 @@ export default function StatusPage() {
           setLineUserId(profile.userId);
           setUserName(profile.displayName || '');
 
-          // ดึงรายการเฉพาะ LINE User ID นี้
+          // ดึงรายการแจ้งซ่อมเฉพาะของบัญชี LINE นี้
           const res = await getAllRequests(profile.userId);
           if (res.success && Array.isArray(res.data)) {
-            const mapped: TicketData[] = res.data.map((item) => {
-              let formattedDate = item.reported_at || '';
-              try {
-                if (item.reported_at) {
-                  const d = new Date(item.reported_at);
-                  const day = String(d.getDate()).padStart(2, '0');
-                  const month = String(d.getMonth() + 1).padStart(2, '0');
-                  const year = d.getFullYear();
-                  const hours = String(d.getHours()).padStart(2, '0');
-                  const minutes = String(d.getMinutes()).padStart(2, '0');
-                  formattedDate = `${day}/${month}/${year} ${hours}:${minutes}`;
-                }
-              } catch {
-                formattedDate = item.reported_at || '';
-              }
-
-              let statusVal: 'pending' | 'received' | 'cancelled' = 'pending';
-              if (item.status === 'แจ้งแล้ว' || item.status === 'กำลังดำเนินการ' || item.status === 'เสร็จสิ้น') {
-                statusVal = 'received';
-              } else if (item.status === 'ไม่รับเรื่อง' || item.status === 'ยกเลิก') {
-                statusVal = 'cancelled';
-              }
-
-              return {
-                id: item.ticket_number || `#AW-${item.id?.slice(0, 4)}`,
-                dbId: item.id,
-                date: formattedDate,
-                category: item.issue_summary,
-                location: item.location,
-                note: item.remark || undefined,
-                status: statusVal,
-                imageUrl: item.image_url,
-              };
-            });
-            setTickets(mapped);
+            setTickets(mapTicketData(res.data));
           }
-        } else {
-          setIsNotLineUser(true);
         }
       } catch (err) {
-        console.warn('LIFF init or fetch error:', err);
-        setIsNotLineUser(true);
+        console.warn('LIFF init error:', err);
+        // กรณีเปิดภายนอกหรือเกิดข้อผิดพลาด ให้ดึงข้อมูลมาแสดงเพื่อไม่ให้หน้าค้าง
+        try {
+          const res = await getAllRequests();
+          if (res.success && Array.isArray(res.data)) {
+            setTickets(mapTicketData(res.data));
+          }
+        } catch (e) {
+          console.error(e);
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
+    const mapTicketData = (data: any[]): TicketData[] => {
+      return data.map((item) => {
+        let formattedDate = item.reported_at || '';
+        try {
+          if (item.reported_at) {
+            const d = new Date(item.reported_at);
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            const hours = String(d.getHours()).padStart(2, '0');
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            formattedDate = `${day}/${month}/${year} ${hours}:${minutes}`;
+          }
+        } catch {
+          formattedDate = item.reported_at || '';
+        }
+
+        let statusVal: 'pending' | 'received' | 'cancelled' = 'pending';
+        if (item.status === 'แจ้งแล้ว' || item.status === 'กำลังดำเนินการ' || item.status === 'เสร็จสิ้น') {
+          statusVal = 'received';
+        } else if (item.status === 'ไม่รับเรื่อง' || item.status === 'ยกเลิก') {
+          statusVal = 'cancelled';
+        }
+
+        return {
+          id: item.ticket_number || `#AW-${item.id?.slice(0, 4)}`,
+          dbId: item.id,
+          date: formattedDate,
+          category: item.issue_summary,
+          location: item.location,
+          note: item.remark || undefined,
+          status: statusVal,
+          imageUrl: item.image_url,
+        };
+      });
+    };
+
     initAndFetch();
   }, []);
-
-  const handleLoginLine = () => {
-    try {
-      if (!liff.isLoggedIn()) {
-        liff.login();
-      }
-    } catch (e) {
-      console.error('LIFF login error:', e);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[#FDF9FF] flex flex-col font-sans relative pb-10">
@@ -137,43 +145,15 @@ export default function StatusPage() {
           </div>
         )}
 
-        {/* กรณีไม่ได้เปิดผ่าน LINE หรือยังไม่ได้ล็อกอิน */}
-        {!isLoading && isNotLineUser && (
-          <div className="bg-white border-[2px] border-[#6610A8] rounded-3xl p-6 md:p-8 text-center shadow-lg flex flex-col items-center gap-4">
-            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center text-3xl">
-              💬
-            </div>
-            <h2 className="text-lg md:text-xl font-extrabold text-black">
-              กรุณาเปิดผ่าน LINE เพื่อดูรายการที่คุณแจ้ง
-            </h2>
-            <p className="text-sm text-gray-600 max-w-md">
-              ระบบติดตามสถานะจะแสดงเฉพาะรายการแจ้งปัญหาที่ส่งจากบัญชี LINE ของคุณเท่านั้น
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs mt-2">
-              <button 
-                onClick={handleLoginLine}
-                className="w-full bg-[#06C755] hover:bg-[#05b34c] text-white font-bold py-3 rounded-2xl shadow transition-transform active:scale-95 text-sm"
-              >
-                เข้าสู่ระบบด้วย LINE
-              </button>
-              <Link href="/" className="w-full">
-                <button className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3 rounded-2xl shadow-sm transition-transform active:scale-95 text-sm">
-                  กลับสู่หน้าหลัก
-                </button>
-              </Link>
-            </div>
-          </div>
-        )}
-
         {/* กรณีล็อกอิน LINE แล้ว แต่ยังไม่มีประวัติการแจ้ง */}
-        {!isLoading && !isNotLineUser && tickets.length === 0 && (
+        {!isLoading && tickets.length === 0 && (
           <div className="bg-white border-[2px] border-[#B870E8] rounded-3xl p-8 text-center shadow-sm flex flex-col items-center gap-4">
             <div className="text-4xl">📋</div>
             <h3 className="text-base md:text-lg font-extrabold text-black">
               ยังไม่มีประวัติการแจ้งปัญหาของคุณ
             </h3>
             <p className="text-xs md:text-sm text-gray-500">
-              เมื่อคุณแจ้งปัญหาห้องน้ำ รายการจะแสดงสถานะการดำเนินงานที่หน้านี้
+              เมื่อคุณแจ้งปัญหาห้องน้ำผ่านระบบ รายการจะแสดงสถานะการดำเนินงานที่หน้านี้แบบเรียลไทม์
             </p>
             <Link href="/report" className="mt-2">
               <button className="bg-[#2E7D32] hover:bg-[#256628] text-white font-extrabold px-6 py-3 rounded-2xl shadow text-sm transition-transform active:scale-95">
@@ -183,8 +163,8 @@ export default function StatusPage() {
           </div>
         )}
 
-        {/* กรณีล็อกอิน LINE แล้วและมีรายการแจ้งซ่อม */}
-        {!isLoading && !isNotLineUser && tickets.length > 0 && (
+        {/* กรณีมีรายการแจ้งซ่อม */}
+        {!isLoading && tickets.length > 0 && (
           <>
             {/* --- ส่วนที่ 1: ล่าสุด --- */}
             <div>
