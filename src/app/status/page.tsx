@@ -26,13 +26,13 @@ export default function StatusPage() {
   
   const [selectedTicket, setSelectedTicket] = useState<TicketData | null>(null);
 
-  // ดึง LINE User ID อัตโนมัติ (Auto-Login) และดึงข้อมูลการแจ้งซ่อมเฉพาะของบัญชีนี้
+  // ดึง LINE User ID อัตโนมัติเมื่อเปิดผ่าน LINE และดึงข้อมูลการแจ้งซ่อม
   useEffect(() => {
     const initAndFetch = async () => {
       const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
 
       if (!liffId) {
-        // กรณีไม่มี LIFF ID (เช่น รันเทสบน Localhost) ดึงข้อมูลทั้งหมด
+        // กรณีไม่มี LIFF ID (เช่น รันเทสบน Localhost)
         try {
           const res = await getAllRequests();
           if (res.success && Array.isArray(res.data)) {
@@ -49,26 +49,30 @@ export default function StatusPage() {
       try {
         await liff.init({ liffId });
 
-        // Auto-Login อัตโนมัติเมื่อเปิดผ่าน LINE OA
-        if (!liff.isLoggedIn()) {
-          liff.login();
-          return;
-        }
+        // ถ้าเปิดผ่าน LINE App LIFF จะเข้าสู่ระบบให้อัตโนมัติ (isInClient)
+        if (liff.isLoggedIn()) {
+          const profile = await liff.getProfile();
+          if (profile?.userId) {
+            setLineUserId(profile.userId);
+            setUserName(profile.displayName || '');
 
-        const profile = await liff.getProfile();
-        if (profile?.userId) {
-          setLineUserId(profile.userId);
-          setUserName(profile.displayName || '');
-
-          // ดึงรายการแจ้งซ่อมเฉพาะของบัญชี LINE นี้
-          const res = await getAllRequests(profile.userId);
-          if (res.success && Array.isArray(res.data)) {
-            setTickets(mapTicketData(res.data));
+            // ดึงรายการแจ้งซ่อมเฉพาะของบัญชี LINE นี้
+            const res = await getAllRequests(profile.userId);
+            if (res.success && Array.isArray(res.data)) {
+              setTickets(mapTicketData(res.data));
+              setIsLoading(false);
+              return;
+            }
           }
         }
+
+        // กรณีเปิดผ่านเบราว์เซอร์ภายนอก / Dev Tunnel ที่ยังไม่ได้ Login LINE ให้ดึงข้อมูลมาแสดงตามปกติเพื่อไม่ให้หน้าค้างหรือ Error
+        const fallbackRes = await getAllRequests();
+        if (fallbackRes.success && Array.isArray(fallbackRes.data)) {
+          setTickets(mapTicketData(fallbackRes.data));
+        }
       } catch (err) {
-        console.warn('LIFF init error:', err);
-        // กรณีเปิดภายนอกหรือเกิดข้อผิดพลาด ให้ดึงข้อมูลมาแสดงเพื่อไม่ให้หน้าค้าง
+        console.warn('LIFF init warning:', err);
         try {
           const res = await getAllRequests();
           if (res.success && Array.isArray(res.data)) {
