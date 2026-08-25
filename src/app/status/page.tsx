@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import liff from '@line/liff';
-import { getAllRequests, updateRequestStatus } from '../services/api';
+import { getAllRequests } from '../services/api';
 
 interface TicketData {
   id: string;
@@ -12,7 +12,7 @@ interface TicketData {
   category: string;
   location: string;
   note?: string;
-  status: 'pending' | 'received' | 'cancelled';
+  status: 'pending' | 'received';
   imageUrl?: string | null;
 }
 
@@ -22,7 +22,6 @@ export default function StatusPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [lineUserId, setLineUserId] = useState<string | null>(null);
   const [userName, setUserName] = useState<string>('');
-  const [isNotLineUser, setIsNotLineUser] = useState(false);
   
   const [selectedTicket, setSelectedTicket] = useState<TicketData | null>(null);
 
@@ -66,7 +65,7 @@ export default function StatusPage() {
           }
         }
 
-        // กรณีเปิดผ่านเบราว์เซอร์ภายนอก / Dev Tunnel ที่ยังไม่ได้ Login LINE ให้ดึงข้อมูลมาแสดงตามปกติเพื่อไม่ให้หน้าค้างหรือ Error
+        // กรณีเปิดผ่านเบราว์เซอร์ภายนอก / Dev Tunnel
         const fallbackRes = await getAllRequests();
         if (fallbackRes.success && Array.isArray(fallbackRes.data)) {
           setTickets(mapTicketData(fallbackRes.data));
@@ -103,11 +102,12 @@ export default function StatusPage() {
           formattedDate = item.reported_at || '';
         }
 
-        let statusVal: 'pending' | 'received' | 'cancelled' = 'pending';
+        // สถานะมีเพียง 2 แบบ: 'รอรับเรื่อง' (pending) และ 'แจ้งแล้ว' (received)
+        let statusVal: 'pending' | 'received' = 'pending';
         if (item.status === 'แจ้งแล้ว' || item.status === 'กำลังดำเนินการ' || item.status === 'เสร็จสิ้น') {
           statusVal = 'received';
-        } else if (item.status === 'ไม่รับเรื่อง' || item.status === 'ยกเลิก') {
-          statusVal = 'cancelled';
+        } else {
+          statusVal = 'pending';
         }
 
         return {
@@ -149,7 +149,7 @@ export default function StatusPage() {
           </div>
         )}
 
-        {/* กรณีล็อกอิน LINE แล้ว แต่ยังไม่มีประวัติการแจ้ง */}
+        {/* กรณีไม่มีประวัติการแจ้ง */}
         {!isLoading && tickets.length === 0 && (
           <div className="bg-white border-[2px] border-[#B870E8] rounded-3xl p-8 text-center shadow-sm flex flex-col items-center gap-4">
             <div className="text-4xl">📋</div>
@@ -174,54 +174,41 @@ export default function StatusPage() {
             <div>
               <h2 className="text-base font-extrabold text-black mb-3">ล่าสุด</h2>
 
-              {tickets[0].status !== 'cancelled' ? (
-                <div 
-                  onClick={() => {
-                    setSelectedTicket(tickets[0]);
-                    setModalType('details');
-                  }}
-                  className="bg-white border-[2px] border-[#B870E8] rounded-3xl p-5 shadow-sm cursor-pointer hover:border-[#6610A8] transition-all relative"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-lg font-extrabold text-black">{tickets[0].id}</span>
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if(confirm('คุณต้องการยกเลิกการแจ้งปัญหานี้ใช่หรือไม่?')) {
-                            const updated = [...tickets];
-                            updated[0].status = 'cancelled';
-                            setTickets(updated);
-                            if (tickets[0].dbId) {
-                              updateRequestStatus(tickets[0].dbId, { status: 'ยกเลิก' });
-                            }
-                          }
-                        }}
-                        className="bg-[#D32F2F] hover:bg-[#B71C1C] text-white text-xs font-bold px-4 py-1.5 rounded-full shadow transition-transform active:scale-95"
-                      >
-                        ยกเลิก
-                      </button>
-                    </div>
+              <div 
+                onClick={() => {
+                  setSelectedTicket(tickets[0]);
+                  setModalType('details');
+                }}
+                className="bg-white border-[2px] border-[#B870E8] rounded-3xl p-5 shadow-sm cursor-pointer hover:border-[#6610A8] transition-all relative"
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <span className="text-lg font-extrabold text-black">{tickets[0].id}</span>
+                  <div>
+                    {tickets[0].status === 'pending' ? (
+                      <span className="bg-[#e3dc01] text-black text-xs font-bold px-4 py-1.5 rounded-full shadow">
+                        รอรับเรื่อง
+                      </span>
+                    ) : (
+                      <span className="bg-[#2E7D32] text-white text-xs font-bold px-4 py-1.5 rounded-full shadow">
+                        แจ้งแล้ว
+                      </span>
+                    )}
                   </div>
-
-                  <p className="text-xs text-gray-500 mb-2">{tickets[0].date}</p>
-                  
-                  <div className="text-sm text-black flex flex-col gap-1 mb-3">
-                    <p><strong>หมวดหมู่:</strong> {tickets[0].category}</p>
-                    <p><strong>สถานที่:</strong> {tickets[0].location}</p>
-                  </div>
-
-                  {tickets[0].note && (
-                    <p className="text-xs text-[#E00000] font-semibold bg-red-50 p-2 rounded-xl border border-red-100">
-                      หมายเหตุ: {tickets[0].note}
-                    </p>
-                  )}
                 </div>
-              ) : (
-                <div className="bg-gray-50 border border-gray-200 rounded-3xl p-4 text-center text-gray-400 text-sm">
-                  ไม่มีรายการล่าสุด (ยกเลิกแล้ว)
+
+                <p className="text-xs text-gray-500 mb-2">{tickets[0].date}</p>
+                
+                <div className="text-sm text-black flex flex-col gap-1 mb-3">
+                  <p><strong>หมวดหมู่:</strong> {tickets[0].category}</p>
+                  <p><strong>สถานที่:</strong> {tickets[0].location}</p>
                 </div>
-              )}
+
+                {tickets[0].note && (
+                  <p className="text-xs text-[#E00000] font-semibold bg-red-50 p-2 rounded-xl border border-red-100">
+                    หมายเหตุ: {tickets[0].note}
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* --- ส่วนที่ 2: ทั้งหมด --- */}
@@ -244,13 +231,9 @@ export default function StatusPage() {
                         <span className="bg-[#e3dc01] text-black text-xs font-bold px-4 py-1.5 rounded-full shadow">
                           รอรับเรื่อง
                         </span>
-                      ) : ticket.status === 'received' ? (
+                      ) : (
                         <span className="bg-[#2E7D32] text-white text-xs font-bold px-4 py-1.5 rounded-full shadow">
                           แจ้งแล้ว
-                        </span>
-                      ) : (
-                        <span className="bg-gray-400 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow">
-                          ยกเลิกแล้ว
                         </span>
                       )}
                     </div>
