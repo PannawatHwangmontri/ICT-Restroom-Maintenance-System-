@@ -1,12 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import liff from '@line/liff';
+import { createMaintenanceRequest, MaintenanceRequest } from '../services/api';
 
 export default function ReportPage() {
   const router = useRouter();
   const [isUrgent, setIsUrgent] = useState(false);
+  const [lineUserId, setLineUserId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submittedTicket, setSubmittedTicket] = useState<MaintenanceRequest | null>(null);
   
   // สถานะสำหรับ Location
   const [isLocationOpen, setIsLocationOpen] = useState(false);
@@ -32,6 +38,23 @@ export default function ReportPage() {
   const [modalStep, setModalStep] = useState<'confirm' | 'success' | 'leave' | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const initLiff = async () => {
+      const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+      if (!liffId) return;
+      try {
+        await liff.init({ liffId });
+        if (liff.isLoggedIn()) {
+          const profile = await liff.getProfile();
+          setLineUserId(profile.userId);
+        }
+      } catch (err) {
+        console.warn('LIFF init warning in report:', err);
+      }
+    };
+    initLiff();
+  }, []);
 
   const locationHierarchy: { [key: string]: string[] } = {
     'ชั้น 1': [
@@ -159,6 +182,59 @@ export default function ReportPage() {
 
     // ถ้าผ่านด่านตรวจสอบทั้งหมด ให้แสดงหน้ายืนยัน
     setModalStep('confirm');
+  };
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const handleConfirmSubmit = async () => {
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      let base64Image: string | null = null;
+      if (selectedFile) {
+        base64Image = await fileToBase64(selectedFile);
+      }
+
+      // สร้างรหัส Ticket เช่น TK-260825-XXXX
+      const datePrefix = new Date().toISOString().slice(2, 10).replace(/-/g, '');
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+      const ticket_number = `TK-${datePrefix}-${randomSuffix}`;
+
+      const issue_summary = isElectricCategory && electricCount
+        ? `${selectedCategory} (${electricCount} จุด)`
+        : selectedCategory;
+
+      const payload = {
+        ticket_number,
+        location: selectedLocation,
+        issue_summary: noteText ? `${issue_summary} (หมายเหตุ: ${noteText})` : issue_summary,
+        priority: isUrgent ? ('สูง' as const) : ('ปานกลาง' as const),
+        image_url: base64Image,
+        line_user_id: lineUserId || null,
+      };
+
+      const res = await createMaintenanceRequest(payload);
+      if (res.success && res.data) {
+        setSubmittedTicket(res.data);
+        setModalStep('success');
+      } else {
+        throw new Error(res.message || 'ไม่สามารถบันทึกรายการแจ้งซ่อมได้');
+      }
+    } catch (err: any) {
+      console.error('Submit error:', err);
+      const errMsg = err?.response?.data?.message || err?.message || 'เกิดข้อผิดพลาดในการส่งข้อมูลไปยังเซิร์ฟเวอร์ กรุณาลองใหม่อีกครั้ง';
+      setSubmitError(errMsg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -437,9 +513,13 @@ export default function ReportPage() {
               ยืนยันรายละเอียดปัญหา
             </h2>
 
+            {submitError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 text-xs md:text-sm p-3 rounded-2xl">
+                ⚠️ {submitError}
+              </div>
+            )}
+
             <div className="text-sm md:text-base text-black flex flex-col gap-2 bg-purple-50/50 p-4 rounded-2xl border border-purple-100">
-              <p><strong>วันเวลาที่แจ้ง :</strong> 20/07/2026 10:00 น.</p>
-              <p><strong>รหัสแจ้ง :</strong> #AW1-01</p>
               <p><strong>สถานที่ :</strong> {selectedLocation}</p>
               <p><strong>หมวดหมู่ :</strong> {selectedCategory} {electricCount ? `(${electricCount} จุด)` : ''}</p>
               
@@ -460,14 +540,28 @@ export default function ReportPage() {
 
             <div className="flex flex-col gap-3 mt-2">
               <button 
-                onClick={() => setModalStep('success')}
-                className="w-full bg-[#2E7D32] hover:bg-[#256628] text-white font-extrabold py-3.5 rounded-2xl shadow-md text-base transition-transform active:scale-95"
+                type="button"
+                disabled={isSubmitting}
+                onClick={handleConfirmSubmit}
+                className="w-full bg-[#2E7D32] hover:bg-[#256628] disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold py-3.5 rounded-2xl shadow-md text-base transition-transform active:scale-95 flex items-center justify-center gap-2"
               >
-                ยืนยัน
+                {isSubmitting ? (
+                  <>
+                    <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                    กำลังส่งข้อมูล...
+                  </>
+                ) : (
+                  'ยืนยัน'
+                )}
               </button>
               <button 
-                onClick={() => setModalStep(null)}
-                className="w-full bg-[#D32F2F] hover:bg-[#B71C1C] text-white font-extrabold py-3.5 rounded-2xl shadow-md text-base transition-transform active:scale-95"
+                type="button"
+                disabled={isSubmitting}
+                onClick={() => {
+                  setModalStep(null);
+                  setSubmitError(null);
+                }}
+                className="w-full bg-[#D32F2F] hover:bg-[#B71C1C] disabled:opacity-50 text-white font-extrabold py-3.5 rounded-2xl shadow-md text-base transition-transform active:scale-95"
               >
                 ยกเลิก
               </button>
@@ -491,13 +585,13 @@ export default function ReportPage() {
             </h2>
 
             <div className="w-full text-sm md:text-base text-black flex flex-col gap-2 bg-purple-50/50 p-4 rounded-2xl border border-purple-100 text-left">
-              <p><strong>วันเวลาที่แจ้ง :</strong> 20/07/2026 10:00 น.</p>
-              <p><strong>รหัสแจ้ง :</strong> #AW1-01</p>
-              <p><strong>สถานที่ :</strong> {selectedLocation}</p>
-              <p><strong>หมวดหมู่ :</strong> {selectedCategory} {electricCount ? `(${electricCount} จุด)` : ''}</p>
+              <p><strong>รหัสแจ้ง :</strong> <span className="font-bold text-[#6610A8]">{submittedTicket?.ticket_number || '#TK-XXXX'}</span></p>
+              <p><strong>วันเวลาที่แจ้ง :</strong> {submittedTicket?.reported_at ? new Date(submittedTicket.reported_at).toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' }) : new Date().toLocaleString('th-TH')} น.</p>
+              <p><strong>สถานที่ :</strong> {submittedTicket?.location || selectedLocation}</p>
+              <p><strong>หมวดหมู่ :</strong> {submittedTicket?.issue_summary || selectedCategory}</p>
               
               {/* ส่วนเพิ่ม: แสดงสถานะเร่งด่วนเฉพาะเมื่อติ๊กเลือก */}
-              {isUrgent && (
+              {(isUrgent || submittedTicket?.priority === 'สูง' || submittedTicket?.priority === 'วิกฤต') && (
                 <p><strong>สถานะ :</strong> <span className="text-[#E00000] font-bold">เร่งด่วน 🚨</span></p>
               )}
 

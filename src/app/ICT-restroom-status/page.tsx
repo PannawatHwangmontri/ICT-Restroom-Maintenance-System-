@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { getAllRestrooms, RestroomStatus } from '../services/api';
 
 interface RestroomSpot {
   name: string;
@@ -14,11 +15,30 @@ interface RestroomSpot {
 export default function ICTRestroomStatusPage() {
   const router = useRouter();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [dbRestrooms, setDbRestrooms] = useState<RestroomStatus[]>([]);
+  const [loading, setLoading] = useState(false);
   
   // แยก State: อันนึงเก็บชั้นที่เลือก(เพื่อเปลี่ยนแผนที่) อีกอันเก็บชื่อห้องน้ำที่กด(เพื่อโชว์กล่องล่าง)
   const [selectedFloor, setSelectedFloor] = useState<string | null>(null); 
   const [selectedSpot, setSelectedSpot] = useState('ประเภทห้องน้ำที่เลือก');
   const [activePopup, setActivePopup] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchRestroomData = async () => {
+      try {
+        setLoading(true);
+        const res = await getAllRestrooms();
+        if (res.success && Array.isArray(res.data)) {
+          setDbRestrooms(res.data);
+        }
+      } catch (err) {
+        console.warn('Could not fetch restrooms from backend:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchRestroomData();
+  }, []);
 
   // เมนูเหลือแค่ชั้น 1-4
   const floors = ['ชั้น 1', 'ชั้น 2', 'ชั้น 3', 'ชั้น 4'];
@@ -65,7 +85,19 @@ export default function ICTRestroomStatusPage() {
     return '/photo/ICT-floor1.jpg';
   };
 
-  const currentSpots = selectedFloor ? floorRestroomSpots[selectedFloor] : [];
+  const rawSpots = selectedFloor ? floorRestroomSpots[selectedFloor] || [] : [];
+  const currentSpots = rawSpots.map((spot) => {
+    const foundInDb = dbRestrooms.find(
+      (r) => r.location_name?.trim().toLowerCase() === spot.name?.trim().toLowerCase()
+    );
+    if (foundInDb) {
+      return {
+        ...spot,
+        status: (foundInDb.status === 'ไม่พร้อมใช้งาน' ? 'maintenance' : 'available') as 'available' | 'maintenance',
+      };
+    }
+    return spot;
+  });
 
   return (
     <div className="min-h-screen bg-[#FDF9FF] flex flex-col font-sans pb-10">

@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react';
 import liff from '@line/liff';
 import Link from 'next/link';
+import { getAllRequests } from '../services/api';
 
 export default function Home() {
   const [profile, setProfile] = useState<any>(null);
   const [isReady, setIsReady] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(true);
+  const [pendingCount, setPendingCount] = useState<number>(0);
 
   useEffect(() => {
     const initLiff = async () => {
@@ -33,6 +35,22 @@ export default function Home() {
       }
     };
     initLiff();
+
+    // Fetch active/pending count
+    const fetchActiveCount = async () => {
+      try {
+        const res = await getAllRequests();
+        if (res.success && Array.isArray(res.data)) {
+          const active = res.data.filter(
+            (r) => r.status === 'รอรับเรื่อง' || r.status === 'แจ้งแล้ว' || r.status === 'กำลังดำเนินการ'
+          );
+          setPendingCount(active.length);
+        }
+      } catch (err) {
+        console.warn('Could not fetch request count for home page:', err);
+      }
+    };
+    fetchActiveCount();
   }, []);
 
   if (!isReady) return <div className="min-h-screen flex items-center justify-center bg-[#FDF9FF]">กำลังโหลดระบบ...</div>;
@@ -94,8 +112,14 @@ export default function Home() {
                     <h3 className="text-lg md:text-xl font-extrabold text-black">ติดตามสถานะ</h3>
                     <p className="text-xs text-gray-500 mt-1">ตรวจสอบสถานะการซ่อมแบบเรียลไทม์</p>
                   </div>
-                  <div className="absolute top-4 right-4 bg-[#E00000] text-white text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full shadow">1</div>
-                  <span className="text-xs font-bold text-[#6610A8] mt-4">1 เรื่องกำลังดำเนินการ &rarr;</span>
+                  {pendingCount > 0 && (
+                    <div className="absolute top-4 right-4 bg-[#E00000] text-white text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full shadow">
+                      {pendingCount}
+                    </div>
+                  )}
+                  <span className="text-xs font-bold text-[#6610A8] mt-4">
+                    {pendingCount > 0 ? `${pendingCount} เรื่องกำลังดำเนินการ →` : 'ดูรายการทั้งหมด →'}
+                  </span>
                 </button>
               </Link>
 
