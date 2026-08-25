@@ -284,6 +284,8 @@ export default function StatusPage() {
           </>
         )}
 
+      </div>
+
       {/* --- POP-UP รายละเอียดการแจ้งซ่อม --- */}
       {modalType === 'details' && selectedTicket && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -303,54 +305,54 @@ export default function StatusPage() {
               <p><strong>หมวดหมู่ :</strong> {selectedTicket.category}</p>
               <p><strong>สถานที่ :</strong> {selectedTicket.location}</p>
               
-            {selectedTicket.imageUrl ? (
-              <>
-                <p className="font-bold mt-2">รูปภาพที่แนบ</p>
-                <div 
-                  onClick={() => setModalType('image')}
-                  className="bg-white border border-black/30 rounded-xl px-3 py-2.5 text-xs text-gray-700 cursor-pointer hover:bg-gray-50 flex items-center justify-between"
-                >
-                  <span>📷 ดูภาพถ่ายหลักฐาน</span>
-                  <span className="text-xs text-purple-600 font-bold">คลิกเพื่อดูรูปภาพ</span>
-                </div>
-              </>
-            ) : (
-              <p className="text-xs text-gray-400 mt-2">ไม่มีรูปภาพแนบ</p>
+              {selectedTicket.imageUrl ? (
+                <>
+                  <p className="font-bold mt-2">รูปภาพที่แนบ</p>
+                  <div 
+                    onClick={() => setModalType('image')}
+                    className="bg-white border border-black/30 rounded-xl px-3 py-2.5 text-xs text-gray-700 cursor-pointer hover:bg-gray-50 flex items-center justify-between"
+                  >
+                    <span>📷 ดูภาพถ่ายหลักฐาน</span>
+                    <span className="text-xs text-purple-600 font-bold">คลิกเพื่อดูรูปภาพ</span>
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-gray-400 mt-2">ไม่มีรูปภาพแนบ</p>
+              )}
+            </div>
+
+            {selectedTicket.note && (
+              <p className="text-xs text-[#E00000] font-semibold bg-red-50 p-2.5 rounded-xl border border-red-100">
+                หมายเหตุ: {selectedTicket.note}
+              </p>
             )}
           </div>
-
-          {selectedTicket.note && (
-            <p className="text-xs text-[#E00000] font-semibold bg-red-50 p-2.5 rounded-xl border border-red-100">
-              หมายเหตุ: {selectedTicket.note}
-            </p>
-          )}
         </div>
-      </div>
-    )}
+      )}
 
-    {/* --- POP-UP ดูรูปภาพเต็มจอ --- */}
-    {modalType === 'image' && (
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-3xl overflow-hidden w-full max-w-md shadow-2xl relative flex flex-col">
-          <button 
-            onClick={() => setModalType('details')}
-            className="absolute top-4 right-4 bg-black/60 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold z-10 hover:bg-black"
-          >
-            ✕
-          </button>
-          <div className="w-full h-80 bg-gray-200 flex items-center justify-center relative">
-            <img 
-              src={selectedTicket?.imageUrl || "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80"} 
-              alt="Uploaded Issue" 
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <div className="p-4 bg-white text-center text-xs text-gray-500 font-bold">
-            รูปภาพปัญหาที่แนบมา
+      {/* --- POP-UP ดูรูปภาพเต็มจอ --- */}
+      {modalType === 'image' && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl overflow-hidden w-full max-w-md shadow-2xl relative flex flex-col">
+            <button 
+              onClick={() => setModalType('details')}
+              className="absolute top-4 right-4 bg-black/60 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold z-10 hover:bg-black"
+            >
+              ✕
+            </button>
+            <div className="w-full h-80 bg-gray-200 flex items-center justify-center relative">
+              <img 
+                src={selectedTicket?.imageUrl || "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80"} 
+                alt="Uploaded Issue" 
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="p-4 bg-white text-center text-xs text-gray-500 font-bold">
+              รูปภาพปัญหาที่แนบมา
+            </div>
           </div>
         </div>
-      </div>
-    )}
+      )}
 
     </div>
   );
