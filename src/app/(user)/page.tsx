@@ -26,8 +26,6 @@ export default function Home() {
         if (liff.isLoggedIn()) {
           const userProfile = await liff.getProfile();
           setProfile(userProfile);
-        } else {
-          liff.login();
         }
       } catch (error) {
         console.error('LIFF Init Error:', error);

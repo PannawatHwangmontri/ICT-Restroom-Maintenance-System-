@@ -10,6 +10,16 @@ export const apiClient = axios.create({
   timeout: 30000,
 });
 
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 403) {
+      console.warn('API 403 Forbidden: ตรวจสอบการตั้งค่า Dev Tunnels หรือ Endpoint URL ของ Backend:', error.config?.url);
+    }
+    return Promise.reject(error);
+  }
+);
+
 export interface MaintenanceRequest {
   id?: string;
   ticket_number: string;
