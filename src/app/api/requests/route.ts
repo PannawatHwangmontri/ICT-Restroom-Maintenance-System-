@@ -5,9 +5,17 @@ const SUPABASE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxqbGpudHF5c2lucWtxeWp2ZGVuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NjUwOTI3MSwiZXhwIjoyMTAyMDg1MjcxfQ.HNL2xEcxlb-4w5kCEcARW1O-s0LQaB8J6Fzo2KdNdfY';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/maintenance_requests?select=*&order=reported_at.desc`, {
+    const { searchParams } = new URL(request.url);
+    const lineUserId = searchParams.get('line_user_id');
+
+    let endpoint = `${SUPABASE_URL}/rest/v1/maintenance_requests?select=*&order=reported_at.desc`;
+    if (lineUserId) {
+      endpoint = `${SUPABASE_URL}/rest/v1/maintenance_requests?line_user_id=eq.${encodeURIComponent(lineUserId)}&select=*&order=reported_at.desc`;
+    }
+
+    const res = await fetch(endpoint, {
       headers: {
         apikey: SUPABASE_KEY,
         Authorization: `Bearer ${SUPABASE_KEY}`,

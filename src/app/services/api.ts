@@ -65,10 +65,11 @@ export async function createMaintenanceRequest(
 }
 
 /**
- * ดึงรายการแจ้งซ่อมทั้งหมด (GET /api/requests)
+ * ดึงรายการแจ้งซ่อม (GET /api/requests หรือ GET /api/requests?line_user_id=...)
  */
-export async function getAllRequests(): Promise<ApiResponse<MaintenanceRequest[]>> {
-  const response = await apiClient.get<ApiResponse<MaintenanceRequest[]>>('/api/requests');
+export async function getAllRequests(lineUserId?: string): Promise<ApiResponse<MaintenanceRequest[]>> {
+  const url = lineUserId ? `/api/requests?line_user_id=${encodeURIComponent(lineUserId)}` : '/api/requests';
+  const response = await apiClient.get<ApiResponse<MaintenanceRequest[]>>(url);
   return response.data;
 }
 

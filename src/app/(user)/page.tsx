@@ -26,18 +26,22 @@ export default function Home() {
         if (liff.isLoggedIn()) {
           const userProfile = await liff.getProfile();
           setProfile(userProfile);
+          if (userProfile?.userId) {
+            fetchActiveCount(userProfile.userId);
+            return;
+          }
         }
       } catch (error) {
         console.error('LIFF Init Error:', error);
         setIsReady(true);
       }
+      fetchActiveCount();
     };
-    initLiff();
 
     // Fetch active/pending count
-    const fetchActiveCount = async () => {
+    const fetchActiveCount = async (userId?: string) => {
       try {
-        const res = await getAllRequests();
+        const res = await getAllRequests(userId);
         if (res.success && Array.isArray(res.data)) {
           const active = res.data.filter(
             (r) => r.status === 'รอรับเรื่อง' || r.status === 'แจ้งแล้ว' || r.status === 'กำลังดำเนินการ'
@@ -48,7 +52,8 @@ export default function Home() {
         console.warn('Could not fetch request count for home page:', err);
       }
     };
-    fetchActiveCount();
+
+    initLiff();
   }, []);
 
   if (!isReady) return <div className="min-h-screen flex items-center justify-center bg-[#FDF9FF]">กำลังโหลดระบบ...</div>;

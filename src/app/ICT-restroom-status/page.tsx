@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getAllRestrooms, getAllRequests } from '../services/api';
 
 interface RestroomSpot {
   name: string;
@@ -10,6 +11,58 @@ interface RestroomSpot {
   reason?: string;
 }
 
+const initialFloorRestroomSpots: { [key: string]: RestroomSpot[] } = {
+  'ชั้น 1': [
+    // 📍 สลับพิกัด ชั้น 1 โซน A และ B ให้จุดบนเป็นผู้ชาย จุดหน้าเป็นผู้หญิงทั้ง 2 ฝั่ง
+    { name: 'ห้องน้ำชาย / ชั้น 1 โซน A', cx: 728, cy: 209.5, status: 'available' },
+    { name: 'ห้องน้ำหญิง / ชั้น 1 โซน A', cx: 717, cy: 184.5, status: 'available' },
+    { name: 'ห้องน้ำชาย / ชั้น 1 โซน B', cx: 249, cy: 222.5, status: 'available' },
+    { name: 'ห้องน้ำหญิง / ชั้น 1 โซน B', cx: 238, cy: 250.5, status: 'available' }
+  ],
+  'ชั้น 2': [
+    { name: 'ห้องน้ำหญิง / ชั้น 2 โซน หอประชุมพะเยา', cx: 352, cy: 221.5, status: 'available' },
+    { name: 'ห้องน้ำหญิง / ชั้น 2 โซน D (บริเวณ งานบริการระบบเครือข่ายคอมพิวเตอร์)', cx: 557, cy: 259.5, status: 'available' },
+    { name: 'ห้องน้ำหญิง / ชั้น 2 โซน A', cx: 700, cy: 442.5, status: 'available' },
+    { name: 'ห้องน้ำหญิง / ชั้น 2 โซน B', cx: 282, cy: 478.5, status: 'available' },
+    { name: 'ห้องน้ำชาย / ชั้น 2 โซน หอประชุมพะเยา', cx: 329, cy: 215.5, status: 'available' },
+    { name: 'ห้องน้ำชาย / ชั้น 2 โซน D (บริเวณ งานบริการระบบเครือข่ายคอมพิวเตอร์)', cx: 537, cy: 265.4, status: 'available' },
+    { name: 'ห้องน้ำชาย / ชั้น 2 โซน A', cx: 690, cy: 421.4, status: 'available' },
+    { name: 'ห้องน้ำชาย / ชั้น 2 โซน B', cx: 290, cy: 457.5, status: 'available' }
+  ],
+  'ชั้น 3': [
+    { name: 'ห้องน้ำหญิง / ชั้น 3 โซน C (ห้องน้ำชำรุดใช้งานไม่ได้)', cx: 333, cy: 231.5, status: 'maintenance', reason: 'ห้องน้ำชำรุดใช้งานไม่ได้' },
+    { name: 'ห้องน้ำหญิง / ชั้น 3 โซน D (บริเวณห้องCITCOMS)', cx: 634, cy: 288.5, status: 'available' },
+    { name: 'ห้องน้ำหญิง / ชั้น 3 โซน A', cx: 745, cy: 475.4, status: 'available' },
+    { name: 'ห้องน้ำหญิง / ชั้น 3 โซน B', cx: 350, cy: 512, status: 'available' },
+    { name: 'ห้องน้ำชาย / ชั้น 3 โซน C (ห้องน้ำชำรุดใช้งานไม่ได้)', cx: 313, cy: 224.5, status: 'maintenance', reason: 'ห้องน้ำชำรุดใช้งานไม่ได้' },
+    { name: 'ห้องน้ำชาย / ชั้น 3 โซน D (บริเวณห้องCITCOMS)', cx: 615, cy: 295, status: 'available' },
+    { name: 'ห้องน้ำชาย / ชั้น 3 โซน A', cx: 737, cy: 452.5, status: 'available' },
+    { name: 'ห้องน้ำชาย / ชั้น 3 โซน B', cx: 358, cy: 489.5, status: 'available' }
+  ],
+  'ชั้น 4': [
+    { name: 'ห้องน้ำหญิง / ชั้น 4 โซน B', cx: 257, cy: 411.5, status: 'available' },
+    { name: 'ห้องน้ำหญิง / ชั้น 4 โซน A', cx: 734, cy: 370, status: 'available' },
+    { name: 'ห้องน้ำชาย / ชั้น 4 โซน B', cx: 266, cy: 387.4, status: 'available' },
+    { name: 'ห้องน้ำชาย / ชั้น 4 โซน A', cx: 723, cy: 343.4, status: 'available' }
+  ]
+};
+
+// Helper ฟังก์ชันเปรียบเทียบชื่อสถานที่
+const normalizeLoc = (str: string) => {
+  return str
+    .replace(/\s+/g, '')
+    .replace(/[()（）/]/g, '')
+    .toLowerCase();
+};
+
+const isLocationMatch = (nameA: string, nameB: string) => {
+  const normA = normalizeLoc(nameA);
+  const normB = normalizeLoc(nameB);
+  if (normA === normB) return true;
+  if (normA.includes(normB) || normB.includes(normA)) return true;
+  return false;
+};
+
 export default function ICTRestroomStatusPage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   
@@ -17,44 +70,87 @@ export default function ICTRestroomStatusPage() {
   const [selectedSpot, setSelectedSpot] = useState('ประเภทห้องน้ำที่เลือก');
   const [activePopup, setActivePopup] = useState<string | null>(null);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [floorRestroomSpots, setFloorRestroomSpots] = useState<{ [key: string]: RestroomSpot[] }>(initialFloorRestroomSpots);
 
   const floors = ['ชั้น 1', 'ชั้น 2', 'ชั้น 3', 'ชั้น 4'];
 
-  const floorRestroomSpots: { [key: string]: RestroomSpot[] } = {
-    'ชั้น 1': [
-      // 📍 สลับพิกัด ชั้น 1 โซน A และ B ให้จุดบนเป็นผู้ชาย จุดหน้าเป็นผู้หญิงทั้ง 2 ฝั่ง
-      { name: 'ห้องน้ำชาย / ชั้น 1 โซน A', cx: 728, cy: 209.5, status: 'available' },
-      { name: 'ห้องน้ำหญิง / ชั้น 1 โซน A', cx: 717, cy: 184.5, status: 'available' },
-      { name: 'ห้องน้ำชาย / ชั้น 1 โซน B', cx: 249, cy: 222.5, status: 'available' },
-      { name: 'ห้องน้ำหญิง / ชั้น 1 โซน B', cx: 238, cy: 250.5, status: 'available' }
-    ],
-    'ชั้น 2': [
-      { name: 'ห้องน้ำหญิง / ชั้น 2 โซน หอประชุมพะเยา', cx: 352, cy: 221.5, status: 'available' },
-      { name: 'ห้องน้ำหญิง / ชั้น 2 โซน D (บริเวณ ห้องงานบริการระบบเครือข่ายคอมพิวเตอร์)', cx: 557, cy: 259.5, status: 'available' },
-      { name: 'ห้องน้ำหญิง / ชั้น 2 โซน A', cx: 700, cy: 442.5, status: 'available' },
-      { name: 'ห้องน้ำหญิง / ชั้น 2 โซน B', cx: 282, cy: 478.5, status: 'available' },
-      { name: 'ห้องน้ำชาย / ชั้น 2 โซน หอประชุมพะเยา', cx: 329, cy: 215.5, status: 'available' },
-      { name: 'ห้องน้ำชาย / ชั้น 2 โซน D (บริเวณ ห้องงานบริการระบบเครือข่ายคอมพิวเตอร์)', cx: 537, cy: 265.4, status: 'available' },
-      { name: 'ห้องน้ำชาย / ชั้น 2 โซน A', cx: 690, cy: 421.4, status: 'available' },
-      { name: 'ห้องน้ำชาย / ชั้น 2 โซน B', cx: 290, cy: 457.5, status: 'available' }
-    ],
-    'ชั้น 3': [
-      { name: 'ห้องน้ำหญิง / ชั้น 3 โซน C (ห้องน้ำชำรุดใช้งานไม่ได้)', cx: 333, cy: 231.5, status: 'available' },
-      { name: 'ห้องน้ำหญิง / ชั้น 3 โซน D (บริเวณห้องCITCOMS)', cx: 634, cy: 288.5, status: 'available' },
-      { name: 'ห้องน้ำหญิง / ชั้น 3 โซน A', cx: 745, cy: 475.4, status: 'available' },
-      { name: 'ห้องน้ำหญิง / ชั้น 3 โซน B', cx: 350, cy: 512, status: 'available' },
-      { name: 'ห้องน้ำชาย / ชั้น 3 โซน C (ห้องน้ำชำรุดใช้งานไม่ได้)', cx: 313, cy: 224.5, status: 'available' },
-      { name: 'ห้องน้ำชาย / ชั้น 3 โซน D (บริเวณห้องCITCOMS)', cx: 615, cy: 295, status: 'available' },
-      { name: 'ห้องน้ำชาย / ชั้น 3 โซน A', cx: 737, cy: 452.5, status: 'available' },
-      { name: 'ห้องน้ำชาย / ชั้น 3 โซน B', cx: 358, cy: 489.5, status: 'available' }
-    ],
-    'ชั้น 4': [
-      { name: 'ห้องน้ำหญิง / ชั้น 4 โซน B', cx: 257, cy: 411.5, status: 'available' },
-      { name: 'ห้องน้ำหญิง / ชั้น 4 โซน A', cx: 734, cy: 370, status: 'available' },
-      { name: 'ห้องน้ำชาย / ชั้น 4 โซน B', cx: 266, cy: 387.4, status: 'available' },
-      { name: 'ห้องน้ำชาย / ชั้น 4 โซน A', cx: 723, cy: 343.4, status: 'available' }
-    ]
-  };
+  // ดึงข้อมูลสถานะจากฐานข้อมูล Backend
+  useEffect(() => {
+    const fetchRestroomStatuses = async () => {
+      try {
+        const [restroomRes, requestRes] = await Promise.allSettled([
+          getAllRestrooms(),
+          getAllRequests(),
+        ]);
+
+        const dbRestrooms = restroomRes.status === 'fulfilled' && restroomRes.value.success ? restroomRes.value.data : [];
+        const dbRequests = requestRes.status === 'fulfilled' && requestRes.value.success ? requestRes.value.data : [];
+
+        setFloorRestroomSpots((prev) => {
+          const updated: { [key: string]: RestroomSpot[] } = {};
+
+          Object.keys(prev).forEach((floor) => {
+            updated[floor] = prev[floor].map((spot) => {
+              // 1. เช็กจากตาราง restroom_status โดยตรง
+              const matchedRestroom = Array.isArray(dbRestrooms)
+                ? dbRestrooms.find((r) => isLocationMatch(r.location_name, spot.name))
+                : null;
+
+              // 2. เช็กจากการแจ้งซ่อมที่ยังไม่เสร็จ (รอรับเรื่อง, แจ้งแล้ว, กำลังดำเนินการ)
+              const activeRequest = Array.isArray(dbRequests)
+                ? dbRequests.find(
+                    (req) =>
+                      isLocationMatch(req.location, spot.name) &&
+                      (req.status === 'รอรับเรื่อง' || req.status === 'แจ้งแล้ว' || req.status === 'กำลังดำเนินการ')
+                  )
+                : null;
+
+              // กรณีชำรุดถาวร
+              const isDefaultBroken = spot.name.includes('ห้องน้ำชำรุดใช้งานไม่ได้');
+
+              if (matchedRestroom && matchedRestroom.status === 'ไม่พร้อมใช้งาน') {
+                return {
+                  ...spot,
+                  status: 'maintenance',
+                  reason: matchedRestroom.reason || 'ปิดปรับปรุงชั่วคราว',
+                };
+              }
+
+              if (activeRequest) {
+                return {
+                  ...spot,
+                  status: 'maintenance',
+                  reason: activeRequest.issue_summary || 'มีการแจ้งปัญหาอยู่ระหว่างดำเนินการ',
+                };
+              }
+
+              if (isDefaultBroken) {
+                return {
+                  ...spot,
+                  status: 'maintenance',
+                  reason: 'ห้องน้ำชำรุดใช้งานไม่ได้',
+                };
+              }
+
+              return {
+                ...spot,
+                status: 'available',
+                reason: undefined,
+              };
+            });
+          });
+
+          return updated;
+        });
+      } catch (err) {
+        console.warn('Error fetching restroom statuses:', err);
+      }
+    };
+
+    fetchRestroomStatuses();
+    const interval = setInterval(fetchRestroomStatuses, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const getFloorImage = () => {
     if (selectedFloor === 'ชั้น 2') return '/photo/ICT-floor2.jpg';

@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import liff from '@line/liff';
+import { createMaintenanceRequest } from '../services/api';
 
 export default function ReportPage() {
   const router = useRouter();
@@ -28,10 +30,36 @@ export default function ReportPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
+  // สถานะสำหรับข้อมูล Ticket ที่สร้างขึ้น & สถานะการส่ง
+  const [ticketNumber, setTicketNumber] = useState<string>('');
+  const [reportDateFormatted, setReportDateFormatted] = useState<string>('');
+  const [lineUserId, setLineUserId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   // สถานะควบคุม Pop-up
   const [modalStep, setModalStep] = useState<'confirm' | 'success' | 'leave' | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [pendingUrl, setPendingUrl] = useState<string | null>(null);
+
+  // ดึง LINE User ID ถ้าเปิดผ่าน LINE LIFF
+  useEffect(() => {
+    const initLiff = async () => {
+      const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+      if (!liffId) return;
+      try {
+        await liff.init({ liffId });
+        if (liff.isLoggedIn()) {
+          const profile = await liff.getProfile();
+          if (profile?.userId) {
+            setLineUserId(profile.userId);
+          }
+        }
+      } catch (err) {
+        console.warn('LIFF init warning:', err);
+      }
+    };
+    initLiff();
+  }, []);
 
   const locationHierarchy: { [key: string]: string[] } = {
     'ชั้น 1': [
@@ -111,6 +139,16 @@ export default function ReportPage() {
                          selectedFile !== null || 
                          isUrgent;
 
+  // แปลงไฟล์รูปภาพเป็น Base64
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
   const handleBackClick = (e: React.MouseEvent) => {
     e.preventDefault();
     if (hasFormStarted) {
@@ -153,7 +191,64 @@ export default function ReportPage() {
       return;
     }
 
+    // สุ่มรหัส Ticket และสร้างวันเวลาปัจจุบัน
+    const randomCode = Math.floor(100 + Math.random() * 900);
+    const prefix = selectedCategory.includes('ไฟ') ? 'EL' : selectedCategory.includes('น้ำ') ? 'WT' : 'AW';
+    const genTicket = `#${prefix}${randomCode}`;
+    
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const formattedDate = `${day}/${month}/${year} ${hours}:${minutes} น.`;
+
+    setTicketNumber(genTicket);
+    setReportDateFormatted(formattedDate);
     setModalStep('confirm');
+  };
+
+  // ส่งข้อมูลไปยัง Backend
+  const handleConfirmSubmit = async () => {
+    setIsSubmitting(true);
+    try {
+      let base64Image: string | null = null;
+      if (selectedFile) {
+        base64Image = await fileToBase64(selectedFile);
+      }
+
+      const issueSummaryText = isElectricCategory
+        ? `${selectedCategory} (${electricCount} จุด)`
+        : selectedCategory;
+
+      const payload = {
+        ticket_number: ticketNumber || `#AW${Math.floor(100 + Math.random() * 900)}`,
+        location: selectedLocation,
+        issue_summary: noteText ? `${issueSummaryText} - หมายเหตุ: ${noteText}` : issueSummaryText,
+        priority: (isUrgent ? 'สูง' : 'ปานกลาง') as 'ต่ำ' | 'ปานกลาง' | 'สูง' | 'วิกฤต',
+        image_url: base64Image,
+        line_user_id: lineUserId || null,
+        remark: noteText || null,
+      };
+
+      const response = await createMaintenanceRequest(payload);
+
+      if (response && (response.success || response.data)) {
+        setModalStep('success');
+      } else {
+        throw new Error(response?.message || 'ไม่สามารถบันทึกข้อมูลได้');
+      }
+    } catch (error: any) {
+      console.error('Error submitting report:', error);
+      const errMsg =
+        error.response?.data?.message ||
+        error.message ||
+        'เกิดข้อผิดพลาดในการส่งข้อมูลไปยังระบบ กรุณาลองใหม่อีกครั้ง';
+      setAlertMessage(errMsg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -422,8 +517,8 @@ export default function ReportPage() {
               ยืนยันรายละเอียดปัญหา
             </h2>
             <div className="text-sm md:text-base text-black flex flex-col gap-2 bg-purple-50/50 p-4 rounded-2xl border border-purple-100">
-              <p><strong>วันเวลาที่แจ้ง :</strong> 20/07/2026 10:00 น.</p>
-              <p><strong>รหัสแจ้ง :</strong> #AW1-01</p>
+              <p><strong>วันเวลาที่แจ้ง :</strong> {reportDateFormatted}</p>
+              <p><strong>รหัสแจ้ง :</strong> {ticketNumber}</p>
               <p><strong>สถานที่ :</strong> {selectedLocation}</p>
               <p><strong>หมวดหมู่ :</strong> {selectedCategory} {electricCount ? `(${electricCount} จุด)` : ''}</p>
               {isUrgent && (
@@ -439,14 +534,26 @@ export default function ReportPage() {
             </div>
             <div className="flex flex-col gap-3 mt-2">
               <button 
-                onClick={() => setModalStep('success')}
-                className="w-full bg-[#2E7D32] hover:bg-[#256628] text-white font-extrabold py-3.5 rounded-2xl shadow-md text-base transition-transform active:scale-95"
+                onClick={handleConfirmSubmit}
+                disabled={isSubmitting}
+                className="w-full bg-[#2E7D32] hover:bg-[#256628] disabled:bg-gray-400 text-white font-extrabold py-3.5 rounded-2xl shadow-md text-base transition-transform active:scale-95 flex items-center justify-center gap-2"
               >
-                ยืนยัน
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    <span>กำลังส่งข้อมูล...</span>
+                  </>
+                ) : (
+                  <span>ยืนยัน</span>
+                )}
               </button>
               <button 
                 onClick={() => setModalStep(null)}
-                className="w-full bg-[#D32F2F] hover:bg-[#B71C1C] text-white font-extrabold py-3.5 rounded-2xl shadow-md text-base transition-transform active:scale-95"
+                disabled={isSubmitting}
+                className="w-full bg-[#D32F2F] hover:bg-[#B71C1C] disabled:bg-gray-400 text-white font-extrabold py-3.5 rounded-2xl shadow-md text-base transition-transform active:scale-95"
               >
                 ยกเลิก
               </button>
@@ -466,8 +573,8 @@ export default function ReportPage() {
               ส่งเรียบร้อยแล้ว
             </h2>
             <div className="w-full text-sm md:text-base text-black flex flex-col gap-2 bg-purple-50/50 p-4 rounded-2xl border border-purple-100 text-left">
-              <p><strong>วันเวลาที่แจ้ง :</strong> 20/07/2026 10:00 น.</p>
-              <p><strong>รหัสแจ้ง :</strong> #AW1-01</p>
+              <p><strong>วันเวลาที่แจ้ง :</strong> {reportDateFormatted}</p>
+              <p><strong>รหัสแจ้ง :</strong> {ticketNumber}</p>
               <p><strong>สถานที่ :</strong> {selectedLocation}</p>
               <p><strong>หมวดหมู่ :</strong> {selectedCategory} {electricCount ? `(${electricCount} จุด)` : ''}</p>
               {isUrgent && (
