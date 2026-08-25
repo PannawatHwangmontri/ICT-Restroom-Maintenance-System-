@@ -85,15 +85,44 @@ export default function ICTRestroomStatusPage() {
     return '/photo/ICT-floor1.jpg';
   };
 
+  const matchRestroom = (spotName: string, floorStr: string, dbItem: any) => {
+    const currentFloorNum = floorStr.replace(/\D/g, '');
+    const dbFloorNum = String(dbItem.floor_level || dbItem.floor || '').replace(/\D/g, '');
+
+    // ต้องตรงกับชั้นเดียวกัน
+    if (currentFloorNum && dbFloorNum && currentFloorNum !== dbFloorNum) {
+      return false;
+    }
+
+    // ตรวจสอบเพศ (ชาย / หญิง)
+    const isFemaleSpot = spotName.includes('หญิง');
+    const isFemaleDb = (dbItem.location_name || '').includes('หญิง');
+    if (isFemaleSpot !== isFemaleDb) return false;
+
+    const dbLoc = (dbItem.location_name || '').toLowerCase();
+    const spotLoc = spotName.toLowerCase();
+
+    // ตรวจสอบโซน
+    if (spotLoc.includes('โซน a') && dbLoc.includes('โซน a')) return true;
+    if (spotLoc.includes('โซน b') && dbLoc.includes('โซน b')) return true;
+    if (spotLoc.includes('โซน c') && (dbLoc.includes('โซน c') || dbLoc.includes('หุ่นยนต์') || dbLoc.includes('อัจฉริยะ') || dbLoc.includes('ชำรุด'))) return true;
+    if (spotLoc.includes('โซน d') && (dbLoc.includes('โซน d') || dbLoc.includes('citcoms') || dbLoc.includes('บริการระบบเครือข่าย') || dbLoc.includes('งานบริการ'))) return true;
+    if ((spotLoc.includes('หอประชุม') || spotLoc.includes('เครือข่าย')) && (dbLoc.includes('หอประชุม') || dbLoc.includes('เครือข่าย'))) return true;
+
+    // ตรวจสอบข้อความทั่วไป
+    const cleanSpot = spotName.replace(/ชั้น\s*\d+/g, '').replace(/[\/\(\)]/g, ' ').trim().toLowerCase();
+    return dbLoc.includes(cleanSpot) || cleanSpot.includes(dbLoc);
+  };
+
   const rawSpots = selectedFloor ? floorRestroomSpots[selectedFloor] || [] : [];
   const currentSpots = rawSpots.map((spot) => {
-    const foundInDb = dbRestrooms.find(
-      (r) => r.location_name?.trim().toLowerCase() === spot.name?.trim().toLowerCase()
-    );
+    if (!selectedFloor) return spot;
+    const foundInDb = dbRestrooms.find((r) => matchRestroom(spot.name, selectedFloor, r));
     if (foundInDb) {
+      const isUnavailable = foundInDb.status === 'ไม่พร้อมใช้งาน' || foundInDb.status === 'ชำรุด' || foundInDb.status === 'ปิดปรับปรุง';
       return {
         ...spot,
-        status: (foundInDb.status === 'ไม่พร้อมใช้งาน' ? 'maintenance' : 'available') as 'available' | 'maintenance',
+        status: (isUnavailable ? 'maintenance' : 'available') as 'available' | 'maintenance',
       };
     }
     return spot;
