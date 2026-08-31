@@ -39,8 +39,10 @@ export interface MaintenanceRequest {
 export interface RestroomStatus {
   id: number;
   location_name: string;
-  floor: string;
+  floor?: string;
+  floor_level?: string;
   status: 'พร้อมใช้งาน' | 'ไม่พร้อมใช้งาน';
+  reason?: string;
   updated_at?: string;
   created_at?: string;
 }
