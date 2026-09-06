@@ -67,11 +67,23 @@ export async function createMaintenanceRequest(
 }
 
 /**
- * ดึงรายการแจ้งซ่อม (GET /api/requests หรือ GET /api/requests?line_user_id=...)
+ * ดึงรายการแจ้งซ่อม (GET /api/requests หรือ GET /api/requests?line_user_id=...&include_image=true)
  */
-export async function getAllRequests(lineUserId?: string): Promise<ApiResponse<MaintenanceRequest[]>> {
-  const url = lineUserId ? `/api/requests?line_user_id=${encodeURIComponent(lineUserId)}` : '/api/requests';
+export async function getAllRequests(lineUserId?: string, includeImage = true): Promise<ApiResponse<MaintenanceRequest[]>> {
+  const params = new URLSearchParams();
+  if (lineUserId) params.append('line_user_id', lineUserId);
+  if (includeImage) params.append('include_image', 'true');
+  const qs = params.toString();
+  const url = qs ? `/api/requests?${qs}` : '/api/requests';
   const response = await apiClient.get<ApiResponse<MaintenanceRequest[]>>(url);
+  return response.data;
+}
+
+/**
+ * ดึงข้อมูลรายการแจ้งซ่อมรายการเดียวพร้อมรูปภาพ (GET /api/requests/:id)
+ */
+export async function getRequestById(id: string): Promise<ApiResponse<MaintenanceRequest>> {
+  const response = await apiClient.get<ApiResponse<MaintenanceRequest>>(`/api/requests/${encodeURIComponent(id)}`);
   return response.data;
 }
 

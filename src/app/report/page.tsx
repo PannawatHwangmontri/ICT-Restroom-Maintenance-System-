@@ -139,12 +139,41 @@ export default function ReportPage() {
                          selectedFile !== null || 
                          isUrgent;
 
-  // แปลงไฟล์รูปภาพเป็น Base64
+  // แปลงไฟล์รูปภาพเป็น Base64 พร้อมบีบอัดขนาดเพื่อป้องกันปัญหา Payload Too Large เมื่อ Deploy
   const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
+      reader.onload = () => {
+        const img = new window.Image();
+        img.src = reader.result as string;
+        img.onload = () => {
+          const maxDim = 1200;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL('image/jpeg', 0.8);
+            resolve(compressed);
+          } else {
+            resolve(reader.result as string);
+          }
+        };
+        img.onerror = () => resolve(reader.result as string);
+      };
       reader.onerror = (error) => reject(error);
     });
   };

@@ -152,6 +152,7 @@ export default function ICTRestroomStatusPage() {
                 <svg viewBox="0 0 1000 700" className="w-full h-auto block rounded-2xl select-none overflow-visible">
                   <image
                     href={getFloorImage()}
+                    xlinkHref={getFloorImage()}
                     width="1000"
                     height="700"
                     preserveAspectRatio="xMidYMid meet"

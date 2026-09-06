@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import liff from '@line/liff';
-import { getAllRequests } from '../services/api';
+import { getAllRequests, getRequestById } from '../services/api';
 
 interface TicketData {
   id: string;
@@ -25,6 +25,31 @@ export default function StatusPage() {
   const [userName, setUserName] = useState<string>('');
   
   const [selectedTicket, setSelectedTicket] = useState<TicketData | null>(null);
+  const [isLoadingImage, setIsLoadingImage] = useState(false);
+
+  // ฟังก์ชันเปิดดูรายละเอียด พร้อมโหลดรูปภาพแบบ On-demand หากยังไม่มี
+  const handleOpenTicket = async (ticket: TicketData) => {
+    setSelectedTicket(ticket);
+    setModalType('details');
+
+    if (!ticket.imageUrl && ticket.dbId) {
+      setIsLoadingImage(true);
+      try {
+        const res = await getRequestById(ticket.dbId);
+        if (res?.success && res.data?.image_url) {
+          const freshImg = res.data.image_url;
+          setSelectedTicket((prev) => (prev && prev.dbId === ticket.dbId ? { ...prev, imageUrl: freshImg } : prev));
+          setTickets((prev) =>
+            prev.map((t) => (t.dbId === ticket.dbId ? { ...t, imageUrl: freshImg } : t))
+          );
+        }
+      } catch (err) {
+        console.warn('Could not fetch ticket detail image:', err);
+      } finally {
+        setIsLoadingImage(false);
+      }
+    }
+  };
 
   // ตัวกรองการค้นหา
   const [selectedDate, setSelectedDate] = useState<string>(''); // YYYY-MM-DD
@@ -398,10 +423,7 @@ export default function StatusPage() {
                     <h2 className="text-base font-extrabold text-black mb-3">ล่าสุด</h2>
 
                     <div 
-                      onClick={() => {
-                        setSelectedTicket(tickets[0]);
-                        setModalType('details');
-                      }}
+                      onClick={() => handleOpenTicket(tickets[0])}
                       className="bg-white border-[2px] border-[#B870E8] rounded-3xl p-5 shadow-sm cursor-pointer hover:border-[#6610A8] transition-all relative group"
                     >
                       <div className="flex justify-between items-start mb-2">
@@ -454,10 +476,7 @@ export default function StatusPage() {
                     {filteredTickets.map((ticket, index) => (
                       <div 
                         key={ticket.dbId || ticket.id || index}
-                        onClick={() => {
-                          setSelectedTicket(ticket);
-                          setModalType('details');
-                        }}
+                        onClick={() => handleOpenTicket(ticket)}
                         className="bg-white border-[2px] border-[#B870E8] rounded-3xl p-5 shadow-sm cursor-pointer hover:border-[#6610A8] transition-all relative group"
                       >
                         <div className="flex justify-between items-start mb-2">
@@ -514,12 +533,16 @@ export default function StatusPage() {
                   <p className="font-bold mt-2">รูปภาพที่แนบ</p>
                   <div 
                     onClick={() => setModalType('image')}
-                    className="bg-white border border-black/30 rounded-xl px-3 py-2.5 text-xs text-gray-700 cursor-pointer hover:bg-gray-50 flex items-center justify-between"
+                    className="bg-white border border-black/30 rounded-xl px-3 py-2.5 text-xs text-gray-700 cursor-pointer hover:bg-gray-50 flex items-center justify-between transition-colors"
                   >
                     <span>📷 ดูภาพถ่ายหลักฐาน</span>
                     <span className="text-xs text-purple-600 font-bold">คลิกเพื่อดูรูปภาพ</span>
                   </div>
                 </>
+              ) : isLoadingImage ? (
+                <div className="mt-2 text-xs text-purple-600 font-semibold flex items-center gap-1.5 animate-pulse">
+                  <span>⏳</span> กำลังโหลดรูปภาพ...
+                </div>
               ) : (
                 <p className="text-xs text-gray-400 mt-2">ไม่มีรูปภาพแนบ</p>
               )}
