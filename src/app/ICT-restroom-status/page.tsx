@@ -15,8 +15,8 @@ interface RestroomSpot {
 // แผนผังพิกัดและ ID ตรงกับตาราง restroom_status ในฐานข้อมูล 100%
 const initialFloorRestroomSpots: { [key: string]: RestroomSpot[] } = {
   'ชั้น 1': [
-    { id: 1, name: 'ห้องน้ำชาย / ชั้น 1 โซน A', cx: 728, cy: 209.5, status: 'available' },
-    { id: 2, name: 'ห้องน้ำหญิง / ชั้น 1 โซน A', cx: 717, cy: 184.5, status: 'available' },
+    { id: 1, name: 'ห้องน้ำชาย / ชั้น 1 โซน A', cx: 717, cy: 184.5, status: 'available' },
+    { id: 2, name: 'ห้องน้ำหญิง / ชั้น 1 โซน A', cx: 728, cy: 209.5, status: 'available' },
     { id: 9, name: 'ห้องน้ำชาย / ชั้น 1 โซน B', cx: 249, cy: 222.5, status: 'available' },
     { id: 10, name: 'ห้องน้ำหญิง / ชั้น 1 โซน B', cx: 238, cy: 250.5, status: 'available' },
   ],
@@ -182,11 +182,10 @@ export default function ICTRestroomStatusPage() {
                             cx={spot.cx}
                             cy={spot.cy}
                             r={10}
-                            className={`${
-                              spot.status === 'available'
+                            className={`${spot.status === 'available'
                                 ? 'fill-[#2E7D32]'
                                 : 'fill-[#E00000]'
-                            } ${isSelected ? 'animate-pulse' : ''} transition-all duration-200 shadow-md`}
+                              } ${isSelected ? 'animate-pulse' : ''} transition-all duration-200 shadow-md`}
                           />
                         </g>
                       );
@@ -219,14 +218,12 @@ export default function ICTRestroomStatusPage() {
 
                             <div className="flex items-center justify-center gap-1.5 mt-2">
                               <span
-                                className={`w-2 h-2 rounded-full ${
-                                  spot.status === 'available' ? 'bg-[#4ADE80]' : 'bg-[#F87171]'
-                                }`}
+                                className={`w-2 h-2 rounded-full ${spot.status === 'available' ? 'bg-[#4ADE80]' : 'bg-[#F87171]'
+                                  }`}
                               />
                               <span
-                                className={`text-[10px] md:text-sm font-bold ${
-                                  spot.status === 'available' ? 'text-[#4ADE80]' : 'text-white'
-                                }`}
+                                className={`text-[10px] md:text-sm font-bold ${spot.status === 'available' ? 'text-[#4ADE80]' : 'text-white'
+                                  }`}
                               >
                                 {spot.status === 'available' ? 'พร้อมใช้งาน' : 'ไม่พร้อมใช้งาน'}
                               </span>
@@ -315,9 +312,8 @@ export default function ICTRestroomStatusPage() {
 
         {/* --- กล่องแสดงชื่อห้องน้ำที่เลือก (ล็อกให้กดไม่ได้ 100%) --- */}
         <div
-          className={`bg-white border border-black/30 rounded-2xl p-4 text-center font-bold text-sm md:text-base shadow-sm pointer-events-none select-none ${
-            selectedSpot !== 'ประเภทห้องน้ำที่เลือก' ? 'text-black' : 'text-gray-400'
-          }`}
+          className={`bg-white border border-black/30 rounded-2xl p-4 text-center font-bold text-sm md:text-base shadow-sm pointer-events-none select-none ${selectedSpot !== 'ประเภทห้องน้ำที่เลือก' ? 'text-black' : 'text-gray-400'
+            }`}
         >
           {selectedSpot}
         </div>
