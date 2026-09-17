@@ -69,7 +69,7 @@ export async function createMaintenanceRequest(
 /**
  * ดึงรายการแจ้งซ่อม (GET /api/requests หรือ GET /api/requests?line_user_id=...&include_image=true)
  */
-export async function getAllRequests(lineUserId?: string, includeImage = true): Promise<ApiResponse<MaintenanceRequest[]>> {
+export async function getAllRequests(lineUserId?: string, includeImage = false): Promise<ApiResponse<MaintenanceRequest[]>> {
   const params = new URLSearchParams();
   if (lineUserId) params.append('line_user_id', lineUserId);
   if (includeImage) params.append('include_image', 'true');

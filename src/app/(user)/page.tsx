@@ -38,10 +38,10 @@ export default function Home() {
       fetchActiveCount();
     };
 
-    // Fetch active/pending count
+    // Fetch active/pending count (ไม่โหลดรูปภาพเพื่อความเร็วสูงสุด)
     const fetchActiveCount = async (userId?: string) => {
       try {
-        const res = await getAllRequests(userId);
+        const res = await getAllRequests(userId, false);
         if (res.success && Array.isArray(res.data)) {
           const active = res.data.filter(
             (r) => r.status === 'รอรับเรื่อง' || r.status === 'แจ้งแล้ว' || r.status === 'กำลังดำเนินการ'

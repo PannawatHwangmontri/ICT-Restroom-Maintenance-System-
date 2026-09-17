@@ -9,10 +9,15 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const lineUserId = searchParams.get('line_user_id');
+    const includeImage = searchParams.get('include_image') === 'true';
 
-    let endpoint = `${SUPABASE_URL}/rest/v1/maintenance_requests?select=*&order=reported_at.desc`;
+    const selectFields = includeImage
+      ? '*'
+      : 'id,ticket_number,reported_at,location,issue_summary,priority,status,notification_message,notified_at,remark,line_user_id';
+
+    let endpoint = `${SUPABASE_URL}/rest/v1/maintenance_requests?select=${encodeURIComponent(selectFields)}&order=reported_at.desc`;
     if (lineUserId) {
-      endpoint = `${SUPABASE_URL}/rest/v1/maintenance_requests?line_user_id=eq.${encodeURIComponent(lineUserId)}&select=*&order=reported_at.desc`;
+      endpoint = `${SUPABASE_URL}/rest/v1/maintenance_requests?line_user_id=eq.${encodeURIComponent(lineUserId)}&select=${encodeURIComponent(selectFields)}&order=reported_at.desc`;
     }
 
     const res = await fetch(endpoint, {
