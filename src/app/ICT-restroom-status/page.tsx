@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getAllRestrooms, RestroomStatus } from '../services/api';
+import { getAllRestrooms, getAllRequests, RestroomStatus, MaintenanceRequest } from '../services/api';
 
 interface RestroomSpot {
   id: number;
@@ -60,13 +60,23 @@ export default function ICTRestroomStatusPage() {
 
   const floors = ['ชั้น 1', 'ชั้น 2', 'ชั้น 3', 'ชั้น 4'];
 
-  // ดึงข้อมูลสถานะจากตาราง restroom_status ในฐานข้อมูล Backend
+  // ดึงข้อมูลสถานะจากตาราง restroom_status และ maintenance_requests ในฐานข้อมูล
   const fetchRestroomStatuses = async (showLoading = false) => {
     if (showLoading) setIsRefreshing(true);
     try {
-      const res = await getAllRestrooms();
-      if (res && res.success && Array.isArray(res.data)) {
-        const dbRestrooms: RestroomStatus[] = res.data;
+      const [restroomsRes, requestsRes] = await Promise.all([
+        getAllRestrooms(),
+        getAllRequests(undefined, false),
+      ]);
+
+      if (restroomsRes && restroomsRes.success && Array.isArray(restroomsRes.data)) {
+        const dbRestrooms: RestroomStatus[] = restroomsRes.data;
+        const dbRequests: MaintenanceRequest[] = requestsRes?.success && Array.isArray(requestsRes.data) ? requestsRes.data : [];
+
+        // รายการแจ้งซ่อมที่ยังอยู่ระหว่างดำเนินการ (ยังไม่เสร็จสิ้น)
+        const activeRequests = dbRequests.filter(
+          (r) => r.status !== 'เสร็จสิ้น' && r.status !== 'ยกเลิก' && r.status !== 'ไม่รับเรื่อง'
+        );
 
         setFloorRestroomSpots((prev) => {
           const updated: { [key: string]: RestroomSpot[] } = {};
@@ -75,13 +85,38 @@ export default function ICTRestroomStatusPage() {
             updated[floor] = prev[floor].map((spot) => {
               // แมปด้วย id เป็นหลัก (ตรงกับ DB 1:1)
               const matched = dbRestrooms.find((r) => r.id === spot.id);
+              const cleanSpotName = spot.name.replace(/\s*\(.*?\)/, '').trim();
+
+              // ค้นหาสาเหตุจริงจากรายการแจ้งซ่อมในตาราง maintenance_requests
+              const matchedReq = activeRequests.find((req) => {
+                if (!req.location) return false;
+                const cleanReqLoc = req.location.replace(/\s*\(.*?\)/, '').trim();
+                return req.location === spot.name || cleanReqLoc === cleanSpotName || spot.name.includes(cleanReqLoc);
+              });
 
               if (matched) {
-                const isAvailable = matched.status === 'พร้อมใช้งาน';
+                // หากในตาราง restroom_status ระบุสถานะไม่พร้อมใช้งาน หรือมีข้อความในคอลัมน์ reason
+                const hasDbReason = Boolean(matched.reason && matched.reason.trim() !== '');
+                const isAvailable = matched.status === 'พร้อมใช้งาน' && !hasDbReason;
+
+                let reasonText: string | undefined = undefined;
+                if (!isAvailable) {
+                  // แสดงข้อความสาเหตุตามคอลัมน์ reason ในตาราง restroom_status เป็นอันดับแรก
+                  if (hasDbReason) {
+                    reasonText = matched.reason!.trim();
+                  } else if (matchedReq?.issue_summary) {
+                    reasonText = matchedReq.issue_summary;
+                  } else if (spot.reason) {
+                    reasonText = spot.reason;
+                  } else {
+                    reasonText = 'ห้องน้ำไม่พร้อมใช้งาน';
+                  }
+                }
+
                 return {
                   ...spot,
                   status: isAvailable ? 'available' : 'maintenance',
-                  reason: isAvailable ? undefined : (matched.reason || 'ห้องน้ำไม่พร้อมใช้งานตามที่ระบุในฐานข้อมูล'),
+                  reason: reasonText,
                 };
               }
 
