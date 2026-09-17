@@ -37,12 +37,11 @@ export default function StatusPage() {
     return `${year}-${month}-${day}`;
   };
 
-  // ตัวกรอง: ค่าเริ่มต้นคือ 'today' (โหลด/แสดงข้อมูลวันนี้ก่อนเป็นอันดับแรก)
+  // ตัวกรอง: ค่าเริ่มต้นคือ 'today' (แสดงข้อมูลวันนี้ก่อนเป็นอันดับแรกตามค่าเริ่มต้น)
   const [dateMode, setDateMode] = useState<'today' | 'all' | 'custom'>('today');
   const [selectedDate, setSelectedDate] = useState<string>(() => getTodayDateStr());
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'received'>('all');
-  const [showSearchBox, setShowSearchBox] = useState(false);
 
   // แปลงข้อมูลจาก API เป็น TicketData
   const mapTicketData = (data: any[]): TicketData[] => {
@@ -235,9 +234,7 @@ export default function StatusPage() {
     } else if (mode === 'all') {
       setSelectedDate('');
     } else if (mode === 'custom') {
-      // ตั้งค่าเริ่มต้น ค้นหา เป็นไม่มีวัน
       setSelectedDate('');
-      setShowSearchBox(true);
     }
   };
 
@@ -270,14 +267,13 @@ export default function StatusPage() {
     });
   }, [tickets, selectedDate, searchQuery, statusFilter]);
 
-  const isFiltering = Boolean(selectedDate || searchQuery.trim() || statusFilter !== 'all');
+  const isFiltering = Boolean((dateMode !== 'all' && selectedDate) || searchQuery.trim() || statusFilter !== 'all');
 
   const handleClearFilters = () => {
     setDateMode('all');
     setSelectedDate('');
     setSearchQuery('');
     setStatusFilter('all');
-    setShowSearchBox(false);
   };
 
   return (
@@ -296,52 +292,59 @@ export default function StatusPage() {
         </div>
       </header>
 
-      {/* --- ตัวควบคุมแถบตัวกรองด่วนสำหรับมือถือ (Segmented Control) --- */}
+      {/* --- ตัวควบคุมการค้นหา (Search & Filters) --- */}
       <div className="w-full max-w-4xl mx-auto px-3.5 pt-3 md:px-8 md:pt-4">
+        <div className="bg-white border border-[#B870E8] rounded-2xl p-1.5 md:p-2 shadow-xs flex flex-col gap-2">
 
-        {/* แถบสลับ: วันนี้ / ทั้งหมด / เลือกวันที่ */}
-        <div className="bg-white border border-[#B870E8] rounded-2xl p-1.5 shadow-xs flex flex-col gap-2">
-
+          {/* แถบสลับโหมดวันที่: วันนี้ (Default) / ทั้งหมด / ค้นหาวัน */}
           <div className="grid grid-cols-3 gap-1 bg-[#F3E8FF] p-1 rounded-xl">
             {/* แท็บ 1: วันนี้ (Default) */}
             <button
+              type="button"
               onClick={() => handleSelectDateMode('today')}
-              className={`py-2 px-2 rounded-lg font-extrabold text-xs md:text-sm transition-all flex items-center justify-center gap-1.5 ${dateMode === 'today'
+              className={`py-2 px-2 rounded-lg font-extrabold text-xs md:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                dateMode === 'today'
                   ? 'bg-[#6610A8] text-white shadow-sm'
                   : 'text-gray-700 hover:text-black hover:bg-purple-100/60'
-                }`}
+              }`}
             >
               <span>วันนี้</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${dateMode === 'today' ? 'bg-white/25 text-white' : 'bg-purple-200 text-[#6610A8]'
-                }`}>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                dateMode === 'today' ? 'bg-white/25 text-white' : 'bg-purple-200 text-[#6610A8]'
+              }`}>
                 {todayCount}
               </span>
             </button>
 
             {/* แท็บ 2: ทั้งหมด */}
             <button
+              type="button"
               onClick={() => handleSelectDateMode('all')}
-              className={`py-2 px-2 rounded-lg font-extrabold text-xs md:text-sm transition-all flex items-center justify-center gap-1.5 ${dateMode === 'all'
+              className={`py-2 px-2 rounded-lg font-extrabold text-xs md:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                dateMode === 'all'
                   ? 'bg-[#6610A8] text-white shadow-sm'
                   : 'text-gray-700 hover:text-black hover:bg-purple-100/60'
-                }`}
+              }`}
             >
               <span>ทั้งหมด</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${dateMode === 'all' ? 'bg-white/25 text-white' : 'bg-purple-200 text-[#6610A8]'
-                }`}>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                dateMode === 'all' ? 'bg-white/25 text-white' : 'bg-purple-200 text-[#6610A8]'
+              }`}>
                 {tickets.length}
               </span>
             </button>
 
-            {/* แท็บ 3: เลือกวันที่ */}
+            {/* แท็บ 3: ค้นหาวัน */}
             <button
+              type="button"
               onClick={() => handleSelectDateMode('custom')}
-              className={`py-2 px-2 rounded-lg font-extrabold text-xs md:text-sm transition-all flex items-center justify-center gap-1 ${dateMode === 'custom'
+              className={`py-2 px-2 rounded-lg font-extrabold text-xs md:text-sm transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                dateMode === 'custom'
                   ? 'bg-[#6610A8] text-white shadow-sm'
                   : 'text-gray-700 hover:text-black hover:bg-purple-100/60'
-                }`}
+              }`}
             >
-              <span>ค้นหา</span>
+              <span>ค้นหาวัน</span>
               {dateMode === 'custom' && selectedDate && (
                 <span className="text-[10px] bg-white/25 text-white px-1 rounded truncate max-w-[60px]">
                   {formatThaiDate(selectedDate).split(' ')[0]}
@@ -350,7 +353,7 @@ export default function StatusPage() {
             </button>
           </div>
 
-          {/* กล่องเลือกวันที่แบบกำหนดเอง (แสดงเมื่อเลือกแท็บ custom) */}
+          {/* กล่องเลือกวันที่แบบกำหนดเอง (แสดงเมื่อเลือกแท็บ ค้นหาวัน) */}
           {dateMode === 'custom' && (
             <div className="flex flex-col gap-1.5 pt-1 px-1">
               <div className="flex items-center gap-2">
@@ -369,7 +372,7 @@ export default function StatusPage() {
                       type="button"
                       onClick={() => setSelectedDate('')}
                       className="absolute right-2 text-gray-400 hover:text-gray-700 text-xs font-bold px-1.5 py-0.5 bg-gray-100 hover:bg-gray-200 rounded cursor-pointer"
-                      title="ล้างวันที่ (ไม่มีวัน)"
+                      title="ล้างวันที่ (ทั้งหมด)"
                     >
                       ล้าง
                     </button>
@@ -381,83 +384,82 @@ export default function StatusPage() {
                   </span>
                 ) : (
                   <span className="text-xs text-gray-500 font-medium whitespace-nowrap bg-purple-50 px-2 py-1.5 rounded-lg border border-purple-200">
-                    ไม่มีวัน
+                    ทั้งหมด
                   </span>
                 )}
               </div>
             </div>
           )}
 
-          {/* แถวตัวกรองสถานะ + ปุ่มค้นหา */}
-          <div className="flex items-center justify-between gap-1.5 pt-1 border-t border-purple-100 px-1">
-            <div className="flex items-center gap-1 overflow-x-auto py-0.5 no-scrollbar">
-              <button
-                onClick={() => setStatusFilter('all')}
-                className={`text-[11px] md:text-xs px-2.5 py-1 rounded-lg font-bold transition-all shrink-0 ${statusFilter === 'all'
-                    ? 'bg-gray-800 text-white shadow-xs'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-              >
-                ทั้งหมด
-              </button>
-              <button
-                onClick={() => setStatusFilter('pending')}
-                className={`text-[11px] md:text-xs px-2.5 py-1 rounded-lg font-extrabold transition-all shrink-0 flex items-center gap-1 ${statusFilter === 'pending'
-                    ? 'bg-[#e3dc01] text-black shadow-xs'
-                    : 'bg-yellow-50 text-yellow-800 hover:bg-yellow-100 border border-yellow-200'
-                  }`}
-              >
-                <span>รอรับเรื่อง</span>
-                {pendingCount > 0 && <span className="text-[10px]">({pendingCount})</span>}
-              </button>
-              <button
-                onClick={() => setStatusFilter('received')}
-                className={`text-[11px] md:text-xs px-2.5 py-1 rounded-lg font-bold transition-all shrink-0 flex items-center gap-1 ${statusFilter === 'received'
-                    ? 'bg-[#2E7D32] text-white shadow-xs'
-                    : 'bg-green-50 text-green-800 hover:bg-green-100 border border-green-200'
-                  }`}
-              >
-                <span>แจ้งแล้ว</span>
-                {receivedCount > 0 && <span className="text-[10px]">({receivedCount})</span>}
-              </button>
-            </div>
-
-            {/* ปุ่มเปิด/ปิดช่องค้นหา */}
-            <button
-              onClick={() => setShowSearchBox(!showSearchBox)}
-              className={`text-xs px-2 py-1 rounded-lg font-bold border transition-colors shrink-0 flex items-center gap-1.5 ${showSearchBox || searchQuery
-                  ? 'bg-purple-100 border-[#6610A8] text-[#6610A8]'
-                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
-                }`}
+          {/* ช่องค้นหาข้อความ */}
+          <div className="relative flex items-center px-1">
+            <svg
+              className="w-4 h-4 text-[#6610A8] absolute left-3 pointer-events-none"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18a7.5 7.5 0 006.15-3.35z" />
-              </svg>
-              <span>{showSearchBox ? 'ปิด' : 'ค้นหา'}</span>
-            </button>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 1010.5 18a7.5 7.5 0 006.15-3.35z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="ค้นหา (รหัสแจ้ง, สถานที่, หรือปัญหา...)"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-[#FAF5FF] border border-[#B870E8] rounded-xl pl-9 pr-8 py-2 text-xs md:text-sm text-black font-medium focus:outline-none focus:ring-2 focus:ring-[#6610A8] transition-all"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3.5 text-gray-400 hover:text-gray-700 text-sm font-bold p-1 cursor-pointer"
+                title="ล้างข้อความ"
+              >
+                &times;
+              </button>
+            )}
           </div>
 
-          {/* กล่องค้นหาข้อความ (พับเก็บได้) */}
-          {(showSearchBox || searchQuery) && (
-            <div className="relative flex items-center pt-1 px-1">
-              <input
-                type="text"
-                placeholder="ค้นหารหัส, สถานที่, ปัญหา..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#FAF5FF] border border-[#B870E8] rounded-xl px-3 py-2 text-xs md:text-sm text-black font-medium focus:outline-none focus:ring-2 focus:ring-[#6610A8]"
-                autoFocus
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 text-gray-400 hover:text-gray-700 text-xs font-bold p-1"
-                >
-                  &times;
-                </button>
-              )}
-            </div>
-          )}
+          {/* แถวตัวกรองสถานะ */}
+          <div className="flex items-center gap-1.5 pt-1 border-t border-purple-100 px-1 overflow-x-auto py-0.5 no-scrollbar">
+            <span className="text-[11px] text-gray-500 font-bold shrink-0">สถานะ:</span>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('all')}
+              className={`text-[11px] md:text-xs px-2.5 py-1 rounded-lg font-bold transition-all shrink-0 cursor-pointer ${
+                statusFilter === 'all'
+                  ? 'bg-gray-800 text-white shadow-xs'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              ทั้งหมด
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('pending')}
+              className={`text-[11px] md:text-xs px-2.5 py-1 rounded-lg font-extrabold transition-all shrink-0 flex items-center gap-1 cursor-pointer ${
+                statusFilter === 'pending'
+                  ? 'bg-[#e3dc01] text-black shadow-xs'
+                  : 'bg-yellow-50 text-yellow-800 hover:bg-yellow-100 border border-yellow-200'
+              }`}
+            >
+              <span>รอรับเรื่อง</span>
+              {pendingCount > 0 && <span className="text-[10px]">({pendingCount})</span>}
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('received')}
+              className={`text-[11px] md:text-xs px-2.5 py-1 rounded-lg font-bold transition-all shrink-0 flex items-center gap-1 cursor-pointer ${
+                statusFilter === 'received'
+                  ? 'bg-[#2E7D32] text-white shadow-xs'
+                  : 'bg-green-50 text-green-800 hover:bg-green-100 border border-green-200'
+              }`}
+            >
+              <span>แจ้งแล้ว</span>
+              {receivedCount > 0 && <span className="text-[10px]">({receivedCount})</span>}
+            </button>
+          </div>
 
         </div>
       </div>
@@ -471,8 +473,7 @@ export default function StatusPage() {
             <div className="flex items-center gap-1.5 truncate">
               <span className="truncate">
                 {dateMode === 'today' && 'รายการวันนี้'}
-                {dateMode === 'all' && 'ทุกวัน'}
-                {dateMode === 'custom' && (selectedDate ? `วันที่ ${formatThaiDate(selectedDate)}` : 'ค้นหา (ไม่มีวัน)')}
+                {dateMode === 'custom' && (selectedDate ? `วันที่ ${formatThaiDate(selectedDate)}` : 'ค้นหาวัน (ทั้งหมด)')}
                 {statusFilter !== 'all' && ` • ${statusFilter === 'pending' ? 'รอรับเรื่อง' : 'แจ้งแล้ว'}`}
                 {searchQuery && ` • "${searchQuery}"`}
                 {` (${filteredTickets.length} รายการ)`}
@@ -531,7 +532,8 @@ export default function StatusPage() {
 
             <div className="flex flex-col sm:flex-row gap-2 mt-2 w-full sm:w-auto">
               <button
-                onClick={handleClearFilters}
+                type="button"
+                onClick={() => handleSelectDateMode('all')}
                 className="bg-[#6610A8] hover:bg-[#520c87] text-white font-extrabold px-5 py-2.5 rounded-2xl text-xs shadow-xs transition-transform active:scale-95 cursor-pointer"
               >
                 ดูประวัติการแจ้งทั้งหมด ({tickets.length} รายการ)
@@ -560,8 +562,9 @@ export default function StatusPage() {
 
               {dateMode === 'today' && tickets.length > todayCount && (
                 <button
+                  type="button"
                   onClick={() => handleSelectDateMode('all')}
-                  className="text-xs text-[#6610A8] hover:underline font-bold active:scale-95 transition-transform"
+                  className="text-xs text-[#6610A8] hover:underline font-bold active:scale-95 transition-transform cursor-pointer"
                 >
                   ดูทั้งหมด ({tickets.length}) &rarr;
                 </button>
@@ -646,6 +649,7 @@ export default function StatusPage() {
             {dateMode === 'today' && tickets.length > todayCount && (
               <div className="text-center pt-2">
                 <button
+                  type="button"
                   onClick={() => handleSelectDateMode('all')}
                   className="w-full bg-white hover:bg-purple-50 border-[2px] border-[#B870E8] text-[#6610A8] font-extrabold py-3 px-4 rounded-2xl text-xs md:text-sm shadow-xs active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
@@ -654,7 +658,6 @@ export default function StatusPage() {
                 </button>
               </div>
             )}
-
           </div>
         )}
 
