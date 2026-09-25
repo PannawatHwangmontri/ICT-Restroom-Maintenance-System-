@@ -34,6 +34,7 @@ export interface MaintenanceRequest {
   notification_message?: string | null;
   notified_at?: string | null;
   created_at?: string;
+  is_repeat_blocked?: boolean;
 }
 
 export interface RestroomStatus {
@@ -62,8 +63,17 @@ export interface ApiResponse<T> {
 export async function createMaintenanceRequest(
   data: Omit<MaintenanceRequest, 'id' | 'status' | 'reported_at' | 'created_at'>
 ): Promise<ApiResponse<MaintenanceRequest>> {
-  const response = await apiClient.post<ApiResponse<MaintenanceRequest>>('/api/requests', data);
-  return response.data;
+  try {
+    const response = await apiClient.post<ApiResponse<MaintenanceRequest>>('/api/requests', data, {
+      validateStatus: (status) => status < 500,
+    });
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.data) {
+      return error.response.data;
+    }
+    throw error;
+  }
 }
 
 /**

@@ -13,7 +13,7 @@ export async function GET(request: Request) {
 
     const selectFields = includeImage
       ? '*'
-      : 'id,ticket_number,reported_at,location,issue_summary,priority,status,notification_message,notified_at,remark,line_user_id';
+      : 'id,ticket_number,reported_at,location,issue_summary,priority,status,notification_message,notified_at,remark,line_user_id,is_repeat_blocked';
 
     let endpoint = `${SUPABASE_URL}/rest/v1/maintenance_requests?select=${encodeURIComponent(selectFields)}&order=reported_at.desc`;
     if (lineUserId) {
@@ -64,6 +64,52 @@ export async function POST(request: Request) {
         },
         { status: 400 }
       );
+    }
+
+    // ตรวจสอบใน database ว่ามีรายการที่เป็นสถานะ "รอรับเรื่อง" หรือ is_repeat_blocked เป็น true หรือไม่
+    try {
+      const checkRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/maintenance_requests?location=eq.${encodeURIComponent(location.trim())}&select=id,location,issue_summary,status,is_repeat_blocked`,
+        {
+          headers: {
+            apikey: SUPABASE_KEY,
+            Authorization: `Bearer ${SUPABASE_KEY}`,
+          },
+          cache: 'no-store',
+        }
+      );
+
+      if (checkRes.ok) {
+        const existingList = await checkRes.json();
+        if (Array.isArray(existingList) && existingList.length > 0) {
+          const isDuplicateBlocked = existingList.some((req: any) => {
+            const existingSummary = (req.issue_summary || '').trim().toLowerCase();
+            const incomingSummary = (issue_summary || '').trim().toLowerCase();
+            const mainIncoming = incomingSummary.split('- หมายเหตุ:')[0].trim();
+            const mainExisting = existingSummary.split('- หมายเหตุ:')[0].trim();
+
+            const isSameIssue =
+              existingSummary.includes(mainIncoming) ||
+              incomingSummary.includes(mainExisting) ||
+              mainIncoming === mainExisting;
+
+            return isSameIssue && (req.status === 'รอรับเรื่อง' || req.is_repeat_blocked === true);
+          });
+
+          if (isDuplicateBlocked) {
+            return NextResponse.json(
+              {
+                success: false,
+                is_duplicate: true,
+                message: 'มีการแจ้งเรื่องนี้เข้าไปเรียบร้อยแล้ว',
+              },
+              { status: 409 }
+            );
+          }
+        }
+      }
+    } catch (checkErr: any) {
+      console.warn('⚠️ Duplicate check warning in Next route:', checkErr.message);
     }
 
     const payload = [

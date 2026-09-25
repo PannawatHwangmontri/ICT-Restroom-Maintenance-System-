@@ -4,12 +4,12 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import liff from '@line/liff';
-import { createMaintenanceRequest } from '../services/api';
+import { createMaintenanceRequest, getAllRequests } from '../services/api';
 
 export default function ReportPage() {
   const router = useRouter();
   const [isUrgent, setIsUrgent] = useState(false);
-  
+
   // สถานะสำหรับ Location
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState('เลือกสถานที่');
@@ -19,7 +19,7 @@ export default function ReportPage() {
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('เลือกหมวดหมู่ปัญหา');
   const [activeCategoryGroup, setActiveCategoryGroup] = useState<string | null>(null);
-  
+
   // สถานะสำหรับกรอกจำนวน (กรณีเลือกหัวข้อระบบไฟฟ้า)
   const [electricCount, setElectricCount] = useState('');
 
@@ -132,12 +132,12 @@ export default function ReportPage() {
 
   const isElectricCategory = selectedCategory === 'ไฟในห้องน้ำไม่ติด' || selectedCategory === 'หลอดไฟเสีย' || selectedCategory === 'ไฟกระพริบ';
 
-  const hasFormStarted = selectedLocation !== 'เลือกสถานที่' || 
-                         selectedCategory !== 'เลือกหมวดหมู่ปัญหา' || 
-                         electricCount !== '' || 
-                         noteText !== '' || 
-                         selectedFile !== null || 
-                         isUrgent;
+  const hasFormStarted = selectedLocation !== 'เลือกสถานที่' ||
+    selectedCategory !== 'เลือกหมวดหมู่ปัญหา' ||
+    electricCount !== '' ||
+    noteText !== '' ||
+    selectedFile !== null ||
+    isUrgent;
 
   // แปลงไฟล์รูปภาพเป็น Base64 พร้อมบีบอัดขนาดเพื่อป้องกันปัญหา Payload Too Large เมื่อ Deploy
   const fileToBase64 = (file: File): Promise<string> => {
@@ -188,7 +188,7 @@ export default function ReportPage() {
     }
   };
 
-  const handleSubmitReport = (e: React.FormEvent) => {
+  const handleSubmitReport = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const isLocationEmpty = selectedLocation === 'เลือกสถานที่';
@@ -209,7 +209,7 @@ export default function ReportPage() {
       setAlertMessage('กรุณาเลือกหมวดหมู่ปัญหาก่อนส่งข้อมูล');
       return;
     }
-    
+
     if (isElectricCategory && !electricCount) {
       setAlertMessage('กรุณาระบุจำนวนจุดที่พบปัญหา');
       return;
@@ -220,11 +220,40 @@ export default function ReportPage() {
       return;
     }
 
+    // ตรวจสอบใน database ว่ามีรายการนั้นที่เป็นสถานะ "รอรับเรื่อง" หรือ "เปิด/ปิดเป็น true" หรือไม่
+    setIsSubmitting(true);
+    try {
+      const res = await getAllRequests(undefined, false);
+      if (res && res.success && Array.isArray(res.data)) {
+        const isDuplicate = res.data.some((item: any) => {
+          const locMatch = (item.location || '').trim() === selectedLocation.trim();
+          if (!locMatch) return false;
+
+          const itemSummary = (item.issue_summary || '').trim().toLowerCase();
+          const cat = selectedCategory.trim().toLowerCase();
+          const mainExisting = itemSummary.split('- หมายเหตุ:')[0].trim();
+          const isSameIssue = itemSummary.includes(cat) || cat.includes(mainExisting) || mainExisting === cat;
+
+          return isSameIssue && (item.status === 'รอรับเรื่อง' || item.is_repeat_blocked === true);
+        });
+
+        if (isDuplicate) {
+          setAlertMessage('มีการแจ้งเรื่องนี้เข้าไปเรียบร้อยแล้ว');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+    } catch (checkErr) {
+      console.warn('Check duplicate error:', checkErr);
+    } finally {
+      setIsSubmitting(false);
+    }
+
     // สุ่มรหัส Ticket และสร้างวันเวลาปัจจุบัน
     const randomCode = Math.floor(100 + Math.random() * 900);
     const prefix = selectedCategory.includes('ไฟ') ? 'EL' : selectedCategory.includes('น้ำ') ? 'WT' : 'AW';
     const genTicket = `#${prefix}${randomCode}`;
-    
+
     const now = new Date();
     const day = String(now.getDate()).padStart(2, '0');
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -263,13 +292,14 @@ export default function ReportPage() {
 
       const response = await createMaintenanceRequest(payload);
 
-      if (response && (response.success || response.data)) {
+      if (response && response.success) {
         setModalStep('success');
       } else {
-        throw new Error(response?.message || 'ไม่สามารถบันทึกข้อมูลได้');
+        setModalStep(null);
+        setAlertMessage(response?.message || 'มีการแจ้งเรื่องนี้เข้าไปเรียบร้อยแล้ว');
       }
     } catch (error: any) {
-      console.error('Error submitting report:', error);
+      setModalStep(null);
       const errMsg =
         error.response?.data?.message ||
         error.message ||
@@ -290,7 +320,7 @@ export default function ReportPage() {
 
   return (
     <div className="min-h-screen bg-[#FDF9FF] flex flex-col font-sans relative">
-      
+
       {/* --- Header --- */}
       <div className="w-full bg-[#E4C5F9] text-black px-4 py-4 md:px-8 md:py-5 flex items-center space-x-4 shadow-sm mb-6">
         <h1 className="text-lg md:text-xl font-extrabold">แจ้งรายละเอียดปัญหา</h1>
@@ -299,7 +329,7 @@ export default function ReportPage() {
       {/* --- เนื้อหาฟอร์ม --- */}
       <div className="w-full max-w-4xl mx-auto p-4 md:p-8 flex flex-col flex-1 pt-0">
         <form onSubmit={handleSubmitReport} className="flex flex-col gap-6 flex-1">
-          
+
           {/* 1. เลือกสถานที่ */}
           <div className="bg-[#E4C5F9]/60 border border-[#D5B0F2] rounded-3xl p-5 md:p-6 shadow-sm">
             <label className="block text-sm md:text-base font-bold text-black mb-3 flex items-center gap-2">
@@ -310,7 +340,7 @@ export default function ReportPage() {
             </label>
 
             <div className="relative">
-              <div 
+              <div
                 onClick={() => setIsLocationOpen(!isLocationOpen)}
                 className="w-full bg-white border border-black/30 rounded-2xl p-3.5 text-sm md:text-base text-black flex items-center justify-between cursor-pointer shadow-sm select-none"
               >
@@ -324,7 +354,7 @@ export default function ReportPage() {
                 <div className="absolute top-full left-0 w-full mt-2 bg-white border border-black/20 rounded-2xl shadow-xl overflow-hidden z-20 max-h-80 overflow-y-auto">
                   {Object.keys(locationHierarchy).map((floor) => (
                     <div key={floor} className="border-b border-gray-100 last:border-none">
-                      <div 
+                      <div
                         onClick={() => setActiveFloor(activeFloor === floor ? null : floor)}
                         className="px-4 py-3 bg-purple-50 hover:bg-purple-100 cursor-pointer text-sm md:text-base font-extrabold text-black flex items-center justify-between"
                       >
@@ -339,7 +369,7 @@ export default function ReportPage() {
                             const isBroken = subItem.includes('ห้องน้ำชำรุดใช้งานไม่ได้');
 
                             return (
-                              <div 
+                              <div
                                 key={index}
                                 onClick={() => {
                                   if (isBroken) return; // ล็อกไม่ให้คลิกเลือกได้
@@ -347,11 +377,10 @@ export default function ReportPage() {
                                   setIsLocationOpen(false);
                                   setActiveFloor(null);
                                 }}
-                                className={`px-6 py-2.5 text-xs md:text-sm border-b border-gray-50 last:border-none ${
-                                  isBroken 
+                                className={`px-6 py-2.5 text-xs md:text-sm border-b border-gray-50 last:border-none ${isBroken
                                     ? 'text-gray-400 bg-gray-50 cursor-not-allowed' // สไตล์เมื่อกดไม่ได้
                                     : 'text-gray-700 hover:bg-purple-50 cursor-pointer' // สไตล์ปกติ
-                                }`}
+                                  }`}
                               >
                                 - {subItem}
                               </div>
@@ -376,7 +405,7 @@ export default function ReportPage() {
             </p>
 
             <div className="relative mb-3">
-              <div 
+              <div
                 onClick={() => setIsCategoryOpen(!isCategoryOpen)}
                 className="w-full bg-white border border-black/30 rounded-2xl p-3.5 text-sm md:text-base text-black flex items-center justify-between cursor-pointer shadow-sm select-none"
               >
@@ -390,7 +419,7 @@ export default function ReportPage() {
                 <div className="absolute top-full left-0 w-full mt-2 bg-white border border-black/20 rounded-2xl shadow-xl overflow-hidden z-20 max-h-80 overflow-y-auto">
                   {Object.keys(categoryHierarchy).map((group) => (
                     <div key={group} className="border-b border-gray-100 last:border-none">
-                      <div 
+                      <div
                         onClick={() => setActiveCategoryGroup(activeCategoryGroup === group ? null : group)}
                         className="px-4 py-3 bg-purple-50 hover:bg-purple-100 cursor-pointer text-sm md:text-base font-extrabold text-black flex items-center justify-between"
                       >
@@ -401,7 +430,7 @@ export default function ReportPage() {
                       {activeCategoryGroup === group && (
                         <div className="bg-white flex flex-col">
                           {categoryHierarchy[group].map((item, index) => (
-                            <div 
+                            <div
                               key={index}
                               onClick={() => {
                                 setSelectedCategory(item);
@@ -424,21 +453,21 @@ export default function ReportPage() {
             {isElectricCategory ? (
               <div className="flex items-center gap-3 bg-white border border-black/30 rounded-2xl p-3.5">
                 <span className="text-sm md:text-base text-black font-semibold shrink-0">จำนวนจุดที่พบปัญหา:</span>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   min="1"
-                  placeholder="ระบุจำนวน (กี่จุด/กี่หลอด)" 
+                  placeholder="ระบุจำนวน (กี่จุด/กี่หลอด)"
                   value={electricCount}
                   onChange={(e) => setElectricCount(e.target.value)}
                   className="w-full bg-transparent text-sm md:text-base text-black focus:outline-none"
                 />
               </div>
             ) : (
-              <input 
-                type="text" 
+              <input
+                type="text"
                 readOnly
                 value={selectedCategory === 'เลือกหมวดหมู่ปัญหา' ? '' : selectedCategory}
-                placeholder="ประเภทปัญหาที่เลือก" 
+                placeholder="ประเภทปัญหาที่เลือก"
                 className="w-full bg-white border border-black/30 rounded-2xl p-3.5 text-sm md:text-base text-gray-700 focus:outline-none"
               />
             )}
@@ -459,10 +488,10 @@ export default function ReportPage() {
               <label className="w-full h-full border-2 border-dashed border-black rounded-2xl flex flex-col items-center justify-center cursor-pointer bg-white hover:bg-gray-50 transition-colors shadow-sm overflow-hidden relative group">
                 {previewUrl ? (
                   <div className="relative w-full h-full">
-                    <img 
-                      src={previewUrl} 
-                      alt="Preview" 
-                      className="w-full h-full object-cover rounded-2xl" 
+                    <img
+                      src={previewUrl}
+                      alt="Preview"
+                      className="w-full h-full object-cover rounded-2xl"
                     />
                     <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl">
                       <span className="text-white text-xs font-bold">📷 เปลี่ยนรูป</span>
@@ -486,20 +515,20 @@ export default function ReportPage() {
           {/* 4. เร่งด่วน และ หมายเหตุ */}
           <div className="flex flex-col gap-3">
             <label className="flex items-center space-x-3 cursor-pointer select-none">
-              <input 
-                type="checkbox" 
-                checked={isUrgent} 
+              <input
+                type="checkbox"
+                checked={isUrgent}
                 onChange={(e) => setIsUrgent(e.target.checked)}
-                className="w-5 h-5 accent-black rounded cursor-pointer" 
+                className="w-5 h-5 accent-black rounded cursor-pointer"
               />
               <span className="text-base font-extrabold text-black">เร่งด่วน</span>
             </label>
 
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
-              placeholder="* หมายเหตุเพิ่มเติม" 
+              placeholder="* หมายเหตุเพิ่มเติม"
               className="w-full bg-white border border-black/30 rounded-2xl p-3.5 text-sm md:text-base text-black focus:outline-none focus:ring-1 focus:ring-black focus:border-black"
             />
           </div>
@@ -528,7 +557,7 @@ export default function ReportPage() {
             <p className="text-sm md:text-base text-gray-700">
               {alertMessage}
             </p>
-            <button 
+            <button
               onClick={() => setAlertMessage(null)}
               className="w-full bg-[#6610A8] hover:bg-[#520d86] text-white font-extrabold py-3.5 rounded-2xl shadow-md text-base transition-transform active:scale-95"
             >
@@ -562,7 +591,7 @@ export default function ReportPage() {
               )}
             </div>
             <div className="flex flex-col gap-3 mt-2">
-              <button 
+              <button
                 onClick={handleConfirmSubmit}
                 disabled={isSubmitting}
                 className="w-full bg-[#2E7D32] hover:bg-[#256628] disabled:bg-gray-400 text-white font-extrabold py-3.5 rounded-2xl shadow-md text-base transition-transform active:scale-95 flex items-center justify-center gap-2"
@@ -579,7 +608,7 @@ export default function ReportPage() {
                   <span>ยืนยัน</span>
                 )}
               </button>
-              <button 
+              <button
                 onClick={() => setModalStep(null)}
                 disabled={isSubmitting}
                 className="w-full bg-[#D32F2F] hover:bg-[#B71C1C] disabled:bg-gray-400 text-white font-extrabold py-3.5 rounded-2xl shadow-md text-base transition-transform active:scale-95"
@@ -629,7 +658,7 @@ export default function ReportPage() {
               ข้อมูลการแจ้งปัญหาที่คุณกรอกไว้จะไม่ได้รับการบันทึก<br />ต้องการออกจากหน้านี้ใช่หรือไม่
             </h2>
             <div className="w-full flex flex-col gap-3">
-              <button 
+              <button
                 onClick={() => {
                   setModalStep(null);
                   if (pendingUrl === 'close') {
@@ -642,7 +671,7 @@ export default function ReportPage() {
               >
                 ยืนยัน
               </button>
-              <button 
+              <button
                 onClick={() => {
                   setModalStep(null);
                   setPendingUrl(null);

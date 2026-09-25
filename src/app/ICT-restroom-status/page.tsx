@@ -219,8 +219,8 @@ export default function ICTRestroomStatusPage() {
                             cy={spot.cy}
                             r={10}
                             className={`${spot.status === 'available'
-                                ? 'fill-[#2E7D32]'
-                                : 'fill-[#E00000]'
+                              ? 'fill-[#2E7D32]'
+                              : 'fill-[#E00000]'
                               } ${isSelected ? 'animate-pulse' : ''} transition-all duration-200 shadow-md`}
                           />
                         </g>
