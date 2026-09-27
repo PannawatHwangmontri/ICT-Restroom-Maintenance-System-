@@ -14,7 +14,8 @@ interface TicketData {
   category: string;
   location: string;
   note?: string;
-  status: 'pending' | 'received';
+  status: 'pending' | 'received' | 'repairing' | 'completed' | 'rejected';
+  statusLabel: string;
   imageUrl?: string | null;
 }
 
@@ -41,7 +42,7 @@ export default function StatusPage() {
   const [dateMode, setDateMode] = useState<'today' | 'all' | 'custom'>('today');
   const [selectedDate, setSelectedDate] = useState<string>(() => getTodayDateStr());
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'received'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'received' | 'repairing' | 'completed'>('all');
 
   // แปลงข้อมูลจาก API เป็น TicketData
   const mapTicketData = (data: any[]): TicketData[] => {
@@ -65,11 +66,24 @@ export default function StatusPage() {
         formattedDate = item.reported_at || '';
       }
 
-      let statusVal: 'pending' | 'received' = 'pending';
-      if (item.status === 'แจ้งแล้ว' || item.status === 'กำลังดำเนินการ' || item.status === 'เสร็จสิ้น') {
+      let statusVal: TicketData['status'] = 'pending';
+      let statusLabel = 'รอรับเรื่อง';
+
+      if (item.status === 'กำลังซ่อมแซม' || item.status === 'กำลังดำเนินการ') {
+        statusVal = 'repairing';
+        statusLabel = 'กำลังซ่อมแซม';
+      } else if (item.status === 'ซ่อมเสร็จแล้ว' || item.status === 'เสร็จสิ้น') {
+        statusVal = 'completed';
+        statusLabel = 'ซ่อมเสร็จแล้ว';
+      } else if (item.status === 'รับเรื่อง' || item.status === 'แจ้งแล้ว') {
         statusVal = 'received';
+        statusLabel = 'รับเรื่อง';
+      } else if (item.status === 'ไม่รับเรื่อง' || item.status === 'ยกเลิก') {
+        statusVal = 'rejected';
+        statusLabel = item.status;
       } else {
         statusVal = 'pending';
+        statusLabel = 'รอรับเรื่อง';
       }
 
       return {
@@ -82,6 +96,7 @@ export default function StatusPage() {
         location: item.location,
         note: item.remark || undefined,
         status: statusVal,
+        statusLabel: statusLabel,
         imageUrl: item.image_url,
       };
     });
@@ -225,6 +240,53 @@ export default function StatusPage() {
   const receivedCount = useMemo(() => {
     return tickets.filter((t) => t.status === 'received').length;
   }, [tickets]);
+
+  const repairingCount = useMemo(() => {
+    return tickets.filter((t) => t.status === 'repairing').length;
+  }, [tickets]);
+
+  const completedCount = useMemo(() => {
+    return tickets.filter((t) => t.status === 'completed').length;
+  }, [tickets]);
+
+  // ฟังก์ชันแสดง Badge สถานะ
+  const renderStatusBadge = (status: TicketData['status'], label?: string, size: 'sm' | 'md' = 'md') => {
+    const sizeClasses = size === 'sm' ? 'text-[11px] px-2.5 py-0.5' : 'text-xs px-3 py-1';
+    switch (status) {
+      case 'repairing':
+        return (
+          <span className={`bg-[#D97706] text-white font-black rounded-full shadow-xs inline-flex items-center gap-1.5 ${sizeClasses}`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+            {label || 'กำลังซ่อมแซม'}
+          </span>
+        );
+      case 'completed':
+        return (
+          <span className={`bg-[#2E7D32] text-white font-black rounded-full shadow-xs inline-flex items-center ${sizeClasses}`}>
+            {label || 'ซ่อมเสร็จแล้ว'}
+          </span>
+        );
+      case 'received':
+        return (
+          <span className={`bg-[#2563EB] text-white font-black rounded-full shadow-xs inline-flex items-center ${sizeClasses}`}>
+            {label || 'รับเรื่อง'}
+          </span>
+        );
+      case 'rejected':
+        return (
+          <span className={`bg-[#DC2626] text-white font-black rounded-full shadow-xs inline-flex items-center ${sizeClasses}`}>
+            {label || 'ไม่รับเรื่อง'}
+          </span>
+        );
+      case 'pending':
+      default:
+        return (
+          <span className={`bg-[#e3dc01] text-black font-black rounded-full shadow-xs inline-flex items-center ${sizeClasses}`}>
+            {label || 'รอรับเรื่อง'}
+          </span>
+        );
+    }
+  };
 
   // สลับโหมดวันที่
   const handleSelectDateMode = (mode: 'today' | 'all' | 'custom') => {
@@ -452,12 +514,36 @@ export default function StatusPage() {
               onClick={() => setStatusFilter('received')}
               className={`text-[11px] md:text-xs px-2.5 py-1 rounded-lg font-bold transition-all shrink-0 flex items-center gap-1 cursor-pointer ${
                 statusFilter === 'received'
+                  ? 'bg-[#2563EB] text-white shadow-xs'
+                  : 'bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200'
+              }`}
+            >
+              <span>รับเรื่อง</span>
+              {receivedCount > 0 && <span className="text-[10px]">({receivedCount})</span>}
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('repairing')}
+              className={`text-[11px] md:text-xs px-2.5 py-1 rounded-lg font-bold transition-all shrink-0 flex items-center gap-1 cursor-pointer ${
+                statusFilter === 'repairing'
+                  ? 'bg-[#D97706] text-white shadow-xs'
+                  : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200'
+              }`}
+            >
+              <span>กำลังซ่อมแซม</span>
+              {repairingCount > 0 && <span className="text-[10px]">({repairingCount})</span>}
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('completed')}
+              className={`text-[11px] md:text-xs px-2.5 py-1 rounded-lg font-bold transition-all shrink-0 flex items-center gap-1 cursor-pointer ${
+                statusFilter === 'completed'
                   ? 'bg-[#2E7D32] text-white shadow-xs'
                   : 'bg-green-50 text-green-800 hover:bg-green-100 border border-green-200'
               }`}
             >
-              <span>แจ้งแล้ว</span>
-              {receivedCount > 0 && <span className="text-[10px]">({receivedCount})</span>}
+              <span>ซ่อมเสร็จแล้ว</span>
+              {completedCount > 0 && <span className="text-[10px]">({completedCount})</span>}
             </button>
           </div>
 
@@ -474,7 +560,15 @@ export default function StatusPage() {
               <span className="truncate">
                 {dateMode === 'today' && 'รายการวันนี้'}
                 {dateMode === 'custom' && (selectedDate ? `วันที่ ${formatThaiDate(selectedDate)}` : 'ค้นหาวัน (ทั้งหมด)')}
-                {statusFilter !== 'all' && ` • ${statusFilter === 'pending' ? 'รอรับเรื่อง' : 'แจ้งแล้ว'}`}
+                {statusFilter !== 'all' && ` • ${
+                  statusFilter === 'pending'
+                    ? 'รอรับเรื่อง'
+                    : statusFilter === 'received'
+                    ? 'รับเรื่อง'
+                    : statusFilter === 'repairing'
+                    ? 'กำลังซ่อมแซม'
+                    : 'ซ่อมเสร็จแล้ว'
+                }`}
                 {searchQuery && ` • "${searchQuery}"`}
                 {` (${filteredTickets.length} รายการ)`}
               </span>
@@ -594,15 +688,7 @@ export default function StatusPage() {
                     </div>
 
                     <div>
-                      {ticket.status === 'pending' ? (
-                        <span className="bg-[#e3dc01] text-black text-xs font-black px-3 py-1 rounded-full shadow-xs inline-flex items-center">
-                          รอรับเรื่อง
-                        </span>
-                      ) : (
-                        <span className="bg-[#2E7D32] text-white text-xs font-black px-3 py-1 rounded-full shadow-xs inline-flex items-center">
-                          แจ้งแล้ว
-                        </span>
-                      )}
+                      {renderStatusBadge(ticket.status, ticket.statusLabel, 'md')}
                     </div>
                   </div>
 
@@ -692,15 +778,7 @@ export default function StatusPage() {
               <div className="flex justify-between items-center">
                 <span className="font-bold text-gray-600">สถานะ:</span>
                 <div>
-                  {selectedTicket.status === 'pending' ? (
-                    <span className="bg-[#e3dc01] text-black text-[11px] font-black px-2.5 py-0.5 rounded-full shadow-xs">
-                      รอรับเรื่อง
-                    </span>
-                  ) : (
-                    <span className="bg-[#2E7D32] text-white text-[11px] font-black px-2.5 py-0.5 rounded-full shadow-xs">
-                      แจ้งแล้ว
-                    </span>
-                  )}
+                  {renderStatusBadge(selectedTicket.status, selectedTicket.statusLabel, 'sm')}
                 </div>
               </div>
 

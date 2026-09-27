@@ -28,7 +28,7 @@ export interface MaintenanceRequest {
   priority: 'ต่ำ' | 'ปานกลาง' | 'สูง' | 'วิกฤต';
   image_url?: string | null;
   line_user_id?: string | null;
-  status?: 'รอรับเรื่อง' | 'แจ้งแล้ว' | 'กำลังดำเนินการ' | 'เสร็จสิ้น' | 'ยกเลิก' | 'ไม่รับเรื่อง';
+  status?: 'รอรับเรื่อง' | 'แจ้งแล้ว' | 'รับเรื่อง' | 'กำลังดำเนินการ' | 'กำลังซ่อมแซม' | 'เสร็จสิ้น' | 'ซ่อมเสร็จแล้ว' | 'ยกเลิก' | 'ไม่รับเรื่อง';
   reported_at?: string;
   remark?: string | null;
   notification_message?: string | null;

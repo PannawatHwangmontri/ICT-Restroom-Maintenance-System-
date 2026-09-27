@@ -44,7 +44,7 @@ export default function Home() {
         const res = await getAllRequests(userId, false);
         if (res.success && Array.isArray(res.data)) {
           const active = res.data.filter(
-            (r) => r.status === 'รอรับเรื่อง' || r.status === 'แจ้งแล้ว' || r.status === 'กำลังดำเนินการ'
+            (r) => r.status === 'รอรับเรื่อง' || r.status === 'แจ้งแล้ว' || r.status === 'รับเรื่อง' || r.status === 'กำลังดำเนินการ' || r.status === 'กำลังซ่อมแซม'
           );
           setPendingCount(active.length);
         }
